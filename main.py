@@ -695,7 +695,27 @@ _footstep_source = _noise_burst(0.12, attack=0.005, decay=0.05, release=0.06)
 _footstep_basket_source = _noise_burst(0.18, attack=0.01, decay=0.09, release=0.08)
 
 # Egg warning — short distressed-coo placeholder (sine in mid-octave).
-_egg_warning_source = _sine(659.25, 0.25, attack=0.02, release=0.08)            # E5
+# Egg warning — the only alarm in the game. It means you are about to lose
+# a bird, and it is the one sound that must never be mistaken for anything.
+#
+# It used to be a single sine at 659.25 Hz, which is also exactly the pitch
+# and near enough the length of `scan start` — the blip you fire deliberately
+# several times a minute. An alarm that sounds like the most common
+# acknowledgement in the game is an alarm you learn to ignore.
+#
+# Now: two tones, FALLING, both deliberately off the pentatonic (Eb5 -> Bb4),
+# so it is the only thing in the world that isn't in key. Falling because
+# this reports something slipping away rather than asking for input, matching
+# the shape used everywhere else. Two events also read as urgency in a way no
+# single tone does, which is why smoke alarms and reversing lorries chirp
+# rather than hold a note.
+#
+# Kept short — it fires once a second for the last five seconds, so it has to
+# stay clear of its own next repeat and must not become punishing to hear
+# five times.
+_egg_warning_source = _triangle(622.25, 0.10, attack=0.005, release=0.03)   # Eb5
+_egg_warning_second_source = _triangle(466.16, 0.15, attack=0.005, release=0.05)  # Bb4
+EGG_WARNING_GAP = 0.11  # seconds between the two tones            # E5
 
 # Scan start — quick chime marking the moment of pressing Space.
 _scan_start_source = _triangle(659.25, 0.18, attack=0.01, release=0.04)         # E5
@@ -1024,11 +1044,30 @@ def fire_footstep():
 
 
 def fire_egg_warning(*, position=None):
-    # Fires from the egg's location for basketed eggs, at the listener for
-    # held eggs. Same sample category either way; the user can record one
-    # warning take that works for both contexts (anticipation + anxiety).
-    _play(pick_source('egg-warning', fallback=_egg_warning_source),
-          position=position, volume=0.5, category='egg-warning')
+    """The alarm. Fires from the egg's location for basketed eggs, at the
+    listener for held ones — same category either way, so one recorded take
+    covers both contexts (anticipation and anxiety).
+
+    A RECORDED sample plays once, whole. Only the synth placeholder is built
+    from two scheduled tones: a recording already contains whatever shape its
+    author wanted, and firing the second tone over it would talk across
+    someone's take.
+    """
+    recorded = _sample_bank.get('egg-warning')
+    if recorded:
+        _play(random.choice(recorded), position=position, volume=0.5,
+              category='egg-warning')
+        return
+
+    _play(_egg_warning_source, position=position, volume=0.5,
+          category='egg-warning')
+    # Second tone scheduled rather than concatenated: pyglet sources can't be
+    # joined without rebuilding the wave by hand, and a scheduled follow-up
+    # costs nothing. Position is captured so a basketed warning stays put.
+    pyglet.clock.schedule_once(
+        lambda _dt: _play(_egg_warning_second_source, position=position,
+                          volume=0.5, category='egg-warning'),
+        EGG_WARNING_GAP)
 
 
 def fire_scan_start():

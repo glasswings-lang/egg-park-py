@@ -303,12 +303,28 @@ you like; the engine plays them at the right positions.
   hatch timer is in its last 5 seconds. Same sample plays from the
   listener (held) or from the basket position (basketed).
 - **Spatial**: yes when fired from a basket, no when fired for a held egg.
-- **Duration**: 0.20–0.50 s.
+- **Duration**: 0.20–0.50 s. It repeats every second, so it must clear its
+  own next repeat and must not become punishing on the fifth hearing.
 - **Character**: A coo or distressed chirp from inside the shell. The
   same recording has to carry two emotional valences depending on context
   — anxiety for a held egg about to fly off, anticipation for a basketed
   egg about to hatch into your flock. A neutral "the egg is waking up"
-  texture works for both. Soft, not alarming.
+  texture works for both.
+- **This is the only alarm in the game.** It has to be unmistakable, and
+  once was not: it was a single sine at 659.25 Hz, which is the exact pitch
+  and near enough the length of `scan-start` — the blip you fire yourself
+  several times a minute. An alarm that sounds like the commonest
+  acknowledgement in the game is an alarm you stop hearing.
+- **So the placeholder is TWO tones, falling, both off the scale**
+  (Eb5 → Bb4). Off-key because it's then the only thing in the world that
+  is. Falling because it reports something slipping away rather than asking
+  for input — the same shape used everywhere else. Two events because that
+  reads as urgency in a way no single tone does, which is why smoke alarms
+  chirp rather than hold a note.
+- **If you record this one, keep the shape.** Two events, falling, and not
+  in key. A single pretty tone will be correct, pleasant, and ignored. A
+  recorded sample plays once and whole — the engine will not fire a second
+  tone over your take.
 - **Files** (2):
   - `egg-warning-1.wav`
   - `egg-warning-2.wav`
