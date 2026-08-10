@@ -1,0 +1,11 @@
+# Line endings. Without this, git warns on every commit made from Windows
+# about LF becoming CRLF, and the noise trains you to ignore warnings.
+#
+# Text files are stored with LF in the repository and checked out however
+# the local platform prefers. Nobody has to think about it again.
+* text=auto
+
+# Binary. Never touch these, never try to diff them.
+*.dll binary
+*.wav binary
+*.ico binary

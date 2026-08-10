@@ -1,0 +1,40 @@
+# Python bytecode. Regenerated on every run; never worth tracking.
+__pycache__/
+*.py[cod]
+
+# Local preferences. Every setting has a default in SETTINGS_MENU, and
+# load_settings() copes fine when the file is absent — so a fresh clone
+# starts from sane defaults rather than someone else's volume levels.
+# Tracking it would also mean a merge conflict every time two machines
+# nudged a slider.
+settings.json
+
+# Half-written files from the atomic-save dance (write .tmp, then replace).
+# One of these on disk means a save was interrupted, not that anything is
+# worth keeping.
+*.tmp
+
+# Ad-hoc backups taken before big edits. Git is the backup now. The files
+# stay on disk — this only keeps them out of the history.
+*.backup-*
+*.bak
+*.orig
+
+# Editor and OS litter.
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+
+# --- deliberately NOT ignored -------------------------------------------
+#
+# openal32.dll        the HRTF audio runtime. Tracked on purpose: a clone
+#                     should just run. Same reasoning as vendoring the NVDA
+#                     controller DLL in Hearthkin.
+#
+# public/audio/samples/   the recorded sound bank. These ARE the game — the
+#                     synth placeholders are scaffolding, and shipping them
+#                     as the experience would be shipping the wrong thing.
+#                     Audio doesn't diff, so expect the repo to grow; that
+#                     is the intended trade.

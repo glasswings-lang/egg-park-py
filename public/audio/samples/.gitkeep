@@ -1,0 +1,9 @@
+Recorded sound bank goes here. See docs/SOUNDS.md for the categories, the
+filename pattern, and what each one should sound like.
+
+Git doesn't track empty folders, so this file exists to keep the directory
+in a fresh clone. main.py creates it anyway if it's missing — this is for
+anyone reading the repo, not for the code.
+
+Drop a .wav in and it replaces the synth placeholder for that category
+automatically. Press R in-game to reload without restarting.
