@@ -674,7 +674,22 @@ _bird_call_sources = [_triangle(f * BIRD_OCTAVE, 0.4, attack=0.03, release=0.03)
 
 # Non-pitched one-shots.
 _collect_source = _triangle(440.0, 0.35, attack=0.02, release=0.03)         # A4
-_refuse_source = _square(110.0, 0.20, attack=0.005, release=0.02)           # A2 buzz
+# "Hands full" — you walked near an egg you can't carry.
+#
+# This was a square wave at 110 Hz with a 5 ms attack, which is a buzzsaw
+# with a click on the front, played at the listener at half volume. It was
+# frightening, and it fires CONSTANTLY: carry capacity starts at one, so
+# every egg you pass while holding one sets it off.
+#
+# It is also the only sound in the game triggered by NOT acting. You didn't
+# press anything and nothing went wrong — you walked past something you'll
+# come back for. `fumble`, which fires when you press a key that genuinely
+# doesn't work, was gentler than this. That was backwards.
+#
+# Now: sine, soft attack, quieter, and short. B3 is off the pentatonic and
+# sits in the gap between egg A3 and egg C4, so it reads as "not a thing"
+# rather than a note — and can't be mistaken for an egg you could take.
+_refuse_source = _sine(246.94, 0.22, attack=0.05, release=0.12)  # B3, off-scale           # A2 buzz
 _basket_discover_source = _sine(174.61, 1.4, attack=0.20, release=0.20)     # F3 — warm "found"
 _deposit_source = _triangle(110.0, 0.4, attack=0.02, release=0.02)          # A2 thump
 _basket_full_source = _square(146.83, 0.20, attack=0.005, release=0.02)     # D3 — denied
@@ -973,7 +988,10 @@ def fire_collect_sound():
 
 
 def fire_refuse_sound():
-    _play(pick_source('refuse', fallback=_refuse_source), volume=0.5,
+    # Quieter than the other cues on purpose. This one fires more often than
+    # anything except footsteps, and it's reporting an ordinary situation,
+    # not a mistake.
+    _play(pick_source('refuse', fallback=_refuse_source), volume=0.3,
           category='refuse')
 
 

@@ -203,6 +203,17 @@ you like; the engine plays them at the right positions.
 - **Duration**: 0.15–0.30 s.
 - **Character**: A small "nope" — soft, deflated, not harsh. Could be a
   brief downward sigh.
+- **THIS FIRES A LOT.** Carry capacity starts at one, so every egg you walk
+  past while holding one sets it off. Treat it like a footstep for fatigue
+  purposes, not like an event.
+- **It is not an error sound.** Nothing went wrong and you didn't press
+  anything — you walked past something you'll come back for. It should be
+  gentler than `fumble`, which at least follows a key you actually pressed.
+- **The placeholder used to contradict this entry**: a square wave at 110 Hz
+  with a 5 ms attack, i.e. a buzz with a click on the front, at half volume,
+  played right at the listener. It was genuinely frightening. The spec here
+  was right; the synth was wrong. If you record this one, trust the
+  paragraph above and not whatever the placeholder happens to sound like.
 - **Files** (1):
   - `refuse.wav`
 
