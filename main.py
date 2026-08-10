@@ -1583,6 +1583,22 @@ def speak_controls():
 
 
 def on_key_press(symbol, modifiers):
+    """Returns EVENT_HANDLED for anything it consumes. THIS IS LOAD-BEARING.
+
+    pyglet's own `Window.on_key_press` quits the application on Escape. Our
+    handler is pushed above it, but pyglet keeps passing an event DOWN the
+    stack until a handler returns EVENT_HANDLED — so returning None meant
+    our code ran and then pyglet quit anyway, from the park, from settings,
+    from anywhere. Escape appeared to be hard-wired to "exit", and no amount
+    of changing what it does here could have fixed it.
+
+    Return EVENT_HANDLED for every key this function acts on, or Escape goes
+    back to quitting.
+
+    Equally: DON'T return it for keys we don't act on. `keys`
+    (KeyStateHandler) sits below us and is what movement reads, so swallowing
+    everything unconditionally would leave W A S D dead.
+    """
     # Main menu consumes its own keys. Checked FIRST: settings can be opened
     # from here, and the world must not see any of it.
     if _in_main_menu:
@@ -1601,7 +1617,9 @@ def on_key_press(symbol, modifiers):
                 resume_game()
             else:
                 say('Choose an option, or pick Quit to leave.')
-        return
+        else:
+            return None  # not ours; let it fall through
+        return pyglet.event.EVENT_HANDLED
 
     # Settings screen consumes its own keys; nothing falls through to game.
     if _in_settings:
@@ -1617,7 +1635,9 @@ def on_key_press(symbol, modifiers):
             settings_change(+1)
         elif symbol == key.SPACE or symbol == key.RETURN:
             settings_toggle()
-        return
+        else:
+            return None  # not ours; let it fall through
+        return pyglet.event.EVENT_HANDLED
 
     if symbol == key.ESCAPE:
         # Back to the menu, not out of the game. Quitting outright on Escape
@@ -1639,6 +1659,11 @@ def on_key_press(symbol, modifiers):
         nudge_setting('master_volume', -1)
     elif symbol == key.BRACKETRIGHT:
         nudge_setting('master_volume', +1)
+    else:
+        # Movement keys and anything else we don't act on: fall through, so
+        # KeyStateHandler below us still sees them.
+        return None
+    return pyglet.event.EVENT_HANDLED
 
 
 def on_activate():
