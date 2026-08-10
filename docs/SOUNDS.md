@@ -44,10 +44,31 @@ recorded. Empty categories use the synth placeholder.
 
 ## Tonal anchor (synth placeholders only)
 
-While you're recording, the synth placeholders still use **A minor
-pentatonic** (`a3 c4 d4 e4 g4`) so different eggs / baskets / birds sound
-musically distinct from each other instead of all hitting the same
-pitch. Once you record a category, the synth fades out for that category
+While you're recording, the synth placeholders use **A minor pentatonic**
+(`a3 c4 d4 e4 g4`) so two eggs sound musically distinct from each other
+instead of all hitting the same pitch.
+
+**Category is carried by REGISTER, not by timbre.** Every pitched thing
+used to draw from the same five mid-octave notes, with only waveform
+telling them apart — and it didn't work. Eggs call more often than baskets
+chime, and a triangle buries a sine, so baskets were inaudible under the
+eggs they sat on top of. Three octaves now:
+
+| | pitches | voice |
+| --- | --- | --- |
+| **Baskets** | 110–196 Hz (one octave **down**) | sine unfound, triangle found |
+| **Eggs** | 220–392 Hz (the anchor) | triangle |
+| **Birds** | 440–784 Hz (one octave **up**) | triangle |
+| **Origin** | 155.6 Hz, Eb3 | triangle, long bell |
+
+Origin is the one pitch deliberately outside the scale, so it can never
+land on a basket however the octave constants are tuned. Home should sound
+like home, not like another landmark.
+
+**If you record samples, keep them in their register.** A basket sample
+pitched up into egg territory undoes this entirely, and it will sound fine
+in isolation — the failure only appears when several things sound at once,
+which is most of the time. Once you record a category, the synth fades out for that category
 and your samples take over — they don't have to match any pitch, and
 spatial direction (HRTF) carries which-egg-is-where instead of pitch.
 

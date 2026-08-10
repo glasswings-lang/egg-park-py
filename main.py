@@ -85,6 +85,21 @@ TURN_SPEED = math.pi / 2
 PENTATONIC_FREQS = [220.00, 261.63, 293.66, 329.63, 392.00]  # A3 C4 D4 E4 G4
 PENTATONIC_NAMES = ['A3', 'C4', 'D4', 'E4', 'G4']
 
+# Register separation. Everything drew from the same five notes, so eggs and
+# baskets sat on top of each other and eggs won — they call more often and a
+# triangle is far more assertive than a sine. Timbre alone was never going to
+# carry it.
+#
+# Birds already solved this by living an octave up. Baskets now live an
+# octave DOWN, which gives three layers you can hear apart even when all
+# three are sounding: baskets low, eggs middle, birds high.
+#
+# TUNE BY EAR — this is one number. 0.5 is an octave down; 1.0 puts baskets
+# back with the eggs; 0.25 is two octaves down and probably too low to
+# localise, since HRTF direction cues thin out badly in the bass.
+BASKET_OCTAVE = 0.5
+BIRD_OCTAVE = 2.0
+
 # Eggs
 NUM_EGGS = 4
 EGG_CALL_INTERVAL = 1.5
@@ -616,9 +631,10 @@ def _noise_burst(duration, attack=0.05, decay=None, release=0.05):
 # voice." Replace each with sample-bank lookup `samples['egg-call'][note]`.
 _egg_call_sources = [_triangle(f, 0.5) for f in PENTATONIC_FREQS]
 
-# Per-note basket chime sources. Sine = "basket voice," timbrally distinct
-# from eggs' triangle so you can tell them apart by ear.
-_basket_chime_sources = [_sine(f, 0.9) for f in PENTATONIC_FREQS]
+# Per-note basket chime sources — an octave below the eggs, and longer.
+# Low tones need more cycles before the ear commits to a pitch, so a bass
+# note at egg duration reads as a thud rather than a note.
+_basket_chime_sources = [_sine(f * BASKET_OCTAVE, 1.3) for f in PENTATONIC_FREQS]
 
 # Same note, different timbre, for a basket you've already found.
 #
@@ -634,17 +650,27 @@ _basket_chime_sources = [_sine(f, 0.9) for f in PENTATONIC_FREQS]
 # basket reads as brighter and closer without moving or changing note.
 # You can still find the ones you haven't claimed, and you can still hear
 # which ones you have.
-_basket_chime_found_sources = [_triangle(f, 0.9, attack=0.10, release=0.25)
+# NOTE: found/unfound is a difference WITHIN the basket register, never a
+# step out of it. An earlier attempt made a found basket a triangle at egg
+# pitch, which made it sound like an egg — the two states were
+# distinguishable but the whole category stopped being.
+_basket_chime_found_sources = [_triangle(f * BASKET_OCTAVE, 1.3,
+                                         attack=0.10, release=0.30)
                                for f in PENTATONIC_FREQS]
 
 # Per-note scan pings. Briefer than ambient calls; the ping is a discrete
 # "here is one item" signal.
 _scan_egg_ping_sources = [_triangle(f, 0.3, attack=0.02, release=0.02) for f in PENTATONIC_FREQS]
-_scan_basket_ping_sources = [_sine(f, 0.4, attack=0.04, release=0.04) for f in PENTATONIC_FREQS]
+# Basket pings follow baskets into the low register — a scan that answered in
+# a different octave to the thing it was pointing at would undo the whole
+# separation at the exact moment you're trying to tell them apart.
+_scan_basket_ping_sources = [_sine(f * BASKET_OCTAVE, 0.6, attack=0.04, release=0.06)
+                             for f in PENTATONIC_FREQS]
 
 # Per-note bird ambient calls. Brighter triangle one octave up so birds
 # read as overhead/airy compared to ground-level eggs.
-_bird_call_sources = [_triangle(f * 2.0, 0.4, attack=0.03, release=0.03) for f in PENTATONIC_FREQS]
+_bird_call_sources = [_triangle(f * BIRD_OCTAVE, 0.4, attack=0.03, release=0.03)
+                      for f in PENTATONIC_FREQS]
 
 # Non-pitched one-shots.
 _collect_source = _triangle(440.0, 0.35, attack=0.02, release=0.03)         # A4
@@ -687,10 +713,20 @@ _boot_source = _sine(329.63, 1.2, attack=0.25, release=0.30)                    
 _menu_open_source = _triangle(523.25, 0.20, attack=0.02, release=0.05)          # C5
 _menu_close_source = _triangle(329.63, 0.20, attack=0.02, release=0.05)         # E4
 
-# Origin chime — triangle at E3 (164.81 Hz). Outside the pentatonic
-# anchor's mid-octave but harmonically related (the 5th of A). Slow
-# attack/release gives it a bell-like sustain that carries across distance.
-_origin_source = _triangle(164.81, 1.5, attack=0.2, release=0.4)
+# Origin chime — the fixed beacon at world (0, 0, 0).
+#
+# It used to be E3 (164.81 Hz), chosen as "outside the pentatonic's
+# mid-octave but harmonically related". Moving baskets an octave down put
+# a basket on exactly that pitch — and a found basket is a triangle, so the
+# permanent landmark and a movable one became the same sound. Two beacons
+# that can't be told apart are worse than one.
+#
+# Eb3 keeps the low-register bell character and is the one pitch in it that
+# is NOT in A minor pentatonic, so it can never collide with a basket
+# however the octave constant is tuned. Slightly outside the key on
+# purpose: home should sound like home, not like another landmark.
+ORIGIN_FREQ = 155.56  # Eb3 — deliberately not a pentatonic degree
+_origin_source = _triangle(ORIGIN_FREQ, 1.5, attack=0.2, release=0.4)
 
 # Ambience — looped under everything. The synth fallback is filtered noise
 # (200 Hz lowpass) so the placeholder reads as distant air rather than
