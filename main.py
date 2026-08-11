@@ -311,6 +311,13 @@ SETTINGS_MENU = [
     {'key': 'hatch_time', 'label': 'Time before an egg hatches', 'kind': 'range',
      'default': HATCH_TIMER_INITIAL, 'min': 15.0, 'max': 180.0, 'step': 15.0,
      'format': lambda v: f'{v:.0f} seconds'},
+    # Recordings vs synth. Normally a recorded sample wins wherever one
+    # exists, which is what you want while playing — but not while WORKING on
+    # the sounds. Turning this off forces every cue back to its placeholder,
+    # so a take can be compared against what it's replacing without moving
+    # files around on disk.
+    {'key': 'prefer_samples', 'label': 'Use recordings when available',
+     'kind': 'bool', 'default': True},
     {'key': 'enable_pickup',          'label': 'Egg pickup',      'kind': 'bool', 'default': True},
     {'key': 'enable_hand_hatching',   'label': 'Hand hatching',   'kind': 'bool', 'default': True},
     {'key': 'enable_basket_hatching', 'label': 'Basket hatching', 'kind': 'bool', 'default': True},
@@ -481,6 +488,7 @@ def main_menu_items():
     else:
         items.append(('Walk in the park', start_game))
     items.append(('Settings', open_settings))
+    items.append(('Sound test', open_sound_test))
     items.append(('Controls', speak_controls))
     items.append(('Quit', pyglet.app.exit))
     return items
@@ -892,9 +900,27 @@ def _load_sample_bank():
 
 
 def pick_source(category, *, fallback):
-    """Return a random recorded source for this category, or fallback."""
+    """A random recorded source for this category, or the synth fallback.
+
+    Honours the "Use recordings when available" setting, so the whole game
+    can be flipped back to placeholders in one keypress. Every cue routes
+    through here, which is what makes that a single switch rather than
+    twenty-four of them.
+    """
+    if not settings.get('prefer_samples', True):
+        return fallback
     bank = _sample_bank.get(category)
     return random.choice(bank) if bank else fallback
+
+
+def has_recording(category):
+    """True if this category has at least one recorded take on disk.
+
+    Deliberately ignores the prefer_samples setting: this answers "does a
+    file exist", not "would it be used right now". The sound test needs both
+    facts and they are not the same question.
+    """
+    return bool(_sample_bank.get(category))
 
 
 _load_sample_bank()
@@ -1107,7 +1133,7 @@ def fire_egg_warning(*, position=None):
     author wanted, and firing the second tone over it would talk across
     someone's take.
     """
-    recorded = _sample_bank.get('egg-warning')
+    recorded = _sample_bank.get('egg-warning') if settings.get('prefer_samples', True) else None
     if recorded:
         _play(random.choice(recorded), position=position, volume=0.5,
               category='egg-warning')
@@ -1122,6 +1148,178 @@ def fire_egg_warning(*, position=None):
         lambda _dt: _play(_egg_warning_second_source, position=position,
                           volume=0.5, category='egg-warning'),
         EGG_WARNING_GAP)
+
+
+# ============================================================================
+# Sound test
+# ============================================================================
+#
+# Every cue in the game, in one list, each with what it MEANS. This exists
+# because a world made entirely of sound is unusable until you know which
+# sound is which — and there was no way to learn that except by triggering
+# each one in play and inferring backwards.
+#
+# It doubles as the recording workstation: arrow to a cue, hear it, toggle
+# recordings off with S to hear the placeholder it replaces, press R after
+# saving a take to load it without restarting.
+#
+# ADDING A SOUND MEANS ADDING A LINE HERE. A cue missing from this list is a
+# cue nobody can identify, which is the same as not having documented it.
+# `getter` is a callable so per-note categories can pick one representative
+# note, and so nothing is evaluated before the sources exist.
+
+SOUND_CATALOGUE = [
+    ('egg-call', 'Egg call',
+     'An egg calling from where it lies. Follow it to find the egg.',
+     lambda: _egg_call_sources[0]),
+    ('basket-chime', 'Basket chime, not yet found',
+     'A basket you have not walked to yet. Low. Speeds up as you approach.',
+     lambda: _basket_chime_sources[0]),
+    ('basket-chime-found', 'Basket chime, already found',
+     'The same basket once you have claimed it. Same note, brighter voice.',
+     lambda: _basket_chime_found_sources[0]),
+    ('basket-discover', 'Basket found',
+     'Fires once, the moment you first reach a basket.',
+     lambda: _basket_discover_source),
+    ('footstep', 'Footstep',
+     'Your own feet on open ground. One per metre walked.',
+     lambda: _footstep_source),
+    ('footstep-basket', 'Footstep on a basket',
+     'Your feet while stood ON a basket. This is how you know F will work.',
+     lambda: _footstep_basket_source),
+    ('egg-collect', 'Egg collected',
+     'You picked up an egg. Its hatch timer is now running.',
+     lambda: _collect_source),
+    ('refuse', 'Hands full',
+     'You walked past an egg you cannot carry. Nothing went wrong.',
+     lambda: _refuse_source),
+    ('fumble', 'That did nothing',
+     'You pressed a key that had nothing to act on.',
+     lambda: _fumble_source),
+    ('basket-deposit', 'Egg deposited',
+     'An egg went from your hands into a basket. It is safe now.',
+     lambda: _deposit_source),
+    ('basket-full', 'Basket full',
+     'That basket has all it can hold. Good news: you filled it.',
+     lambda: _basket_full_source),
+    ('egg-warning', 'Egg about to hatch',
+     'THE ALARM. A held egg is seconds from hatching and flying off. '
+     'The only cue in the game that is not in key.',
+     None),  # fired through fire_egg_warning so you hear both tones
+    ('hatch-in-basket', 'Bird hatched',
+     'An egg in a basket became one of your birds.',
+     lambda: _hatch_in_basket_source),
+    ('wild-bird-flyoff', 'Bird lost',
+     'A held egg hatched before you could deposit it. That bird is gone.',
+     lambda: _wild_bird_flyoff_source),
+    ('bird-call', 'Bird call',
+     'One of your birds, wandering the park. High.',
+     lambda: _bird_call_sources[0]),
+    ('bird-ambient', 'Bird rustle',
+     'A bird moving about, between its calls.',
+     lambda: _bird_ambient_source),
+    ('origin', 'Home beacon',
+     'The centre of the world, at zero zero. Always there, never moves.',
+     lambda: _origin_source),
+    ('scan-start', 'Scan started',
+     'You pressed Space. The pings that follow are the scan itself.',
+     lambda: _scan_start_source),
+    ('scan-egg-ping', 'Scan ping, egg',
+     'One egg answering a scan. Near things answer first.',
+     lambda: _scan_egg_ping_sources[0]),
+    ('scan-basket-ping', 'Scan ping, basket',
+     'One basket answering a scan.',
+     lambda: _scan_basket_ping_sources[0]),
+    ('boot', 'Startup',
+     'Plays once when the game opens.',
+     lambda: _boot_source),
+    ('menu-open', 'Menu opened',
+     'A menu came up. Rising.',
+     lambda: _menu_open_source),
+    ('menu-close', 'Menu closed',
+     'A menu went away. Falling.',
+     lambda: _menu_close_source),
+]
+# `ambience` is deliberately absent: it is a continuous bed rather than a
+# cue, it runs for half a minute, and it has its own toggle. Previewing it
+# would mean sitting through it.
+
+_in_sound_test = False
+_sound_test_focus = 0
+
+
+def open_sound_test():
+    global _in_sound_test, _in_main_menu, _sound_test_focus
+    _in_main_menu = False
+    _in_sound_test = True
+    _sound_test_focus = 0
+    fire_menu_open()
+    say('Sound test. Up and down to choose, Enter to hear it, '
+        'Right to say what it means. S switches between recordings and the '
+        'built-in sounds. R reloads recordings from disk. Escape goes back.')
+    _speak_sound_test_item()
+
+
+def close_sound_test():
+    global _in_sound_test
+    _in_sound_test = False
+    fire_menu_close()
+    open_main_menu(announce='Sound test closed.')
+
+
+def _sound_test_entry():
+    return SOUND_CATALOGUE[_sound_test_focus % len(SOUND_CATALOGUE)]
+
+
+def _speak_sound_test_item():
+    """Name the cue and say whether it's a recording or the placeholder.
+
+    Which one you're about to hear matters more than anything else on this
+    screen — the whole point is comparing them — so it's said every time
+    rather than tucked behind another keypress.
+    """
+    category, label, _meaning, _getter = _sound_test_entry()
+    if has_recording(category):
+        state = ('recorded' if settings.get('prefer_samples', True)
+                 else 'recorded, but using the built-in')
+    else:
+        state = 'built-in'
+    say(f'{label}. {state}.')
+
+
+def sound_test_focus_move(direction):
+    global _sound_test_focus
+    _sound_test_focus = (_sound_test_focus + direction) % len(SOUND_CATALOGUE)
+    _speak_sound_test_item()
+
+
+def sound_test_play():
+    """Play the focused cue, at the listener.
+
+    Everything is non-positional here even though several of these are
+    normally spatial. You're identifying a sound, not locating it, and a
+    preview that arrived from somewhere off to your left would be harder to
+    compare against the next one.
+    """
+    category, _label, _meaning, getter = _sound_test_entry()
+    if category == 'egg-warning':
+        fire_egg_warning()      # both tones, exactly as the game fires it
+        return
+    _play(pick_source(category, fallback=getter()), volume=0.5,
+          category=category)
+
+
+def sound_test_explain():
+    _category, label, meaning, _getter = _sound_test_entry()
+    say(f'{label}. {meaning}')
+
+
+def sound_test_toggle_source():
+    settings['prefer_samples'] = not settings.get('prefer_samples', True)
+    save_settings()
+    say('Using recordings.' if settings['prefer_samples']
+        else 'Using the built-in sounds.')
+    _speak_sound_test_item()
 
 
 def fire_scan_start():
@@ -1653,6 +1851,27 @@ def on_key_press(symbol, modifiers):
     (KeyStateHandler) sits below us and is what movement reads, so swallowing
     everything unconditionally would leave W A S D dead.
     """
+    # Sound test consumes its own keys.
+    if _in_sound_test:
+        if symbol == key.ESCAPE:
+            close_sound_test()
+        elif symbol == key.UP:
+            sound_test_focus_move(-1)
+        elif symbol == key.DOWN:
+            sound_test_focus_move(+1)
+        elif symbol == key.RETURN or symbol == key.SPACE:
+            sound_test_play()
+        elif symbol == key.RIGHT:
+            sound_test_explain()
+        elif symbol == key.S:
+            sound_test_toggle_source()
+        elif symbol == key.R:
+            reload_sample_bank()
+            _speak_sound_test_item()
+        else:
+            return None
+        return pyglet.event.EVENT_HANDLED
+
     # Main menu consumes its own keys. Checked FIRST: settings can be opened
     # from here, and the world must not see any of it.
     if _in_main_menu:
@@ -1758,7 +1977,7 @@ def update(dt):
     # Settings screen pauses the world entirely — no movement, no ticks,
     # no calls. Hatch timers don't advance, so opening settings mid-game
     # doesn't accidentally lose a held egg.
-    if _in_settings or _in_main_menu:
+    if _in_settings or _in_main_menu or _in_sound_test:
         return
 
     # Turn.

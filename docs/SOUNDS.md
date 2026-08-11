@@ -28,6 +28,27 @@ how many files to record.
   name. Variants are numbered.
 - **Where files go**: `public/audio/samples/` in the project root.
 
+## The recording loop
+
+Use the **Sound test**, from the main menu. It lists every cue below with
+what it means, tells you whether you're hearing a recording or the
+placeholder, and lets you swap between them without moving files or
+restarting.
+
+1. Record a take, save it into the samples folder with the right name.
+2. **R** in the sound test — reloads from disk.
+3. **Enter** — hear your take.
+4. **S** — hear the placeholder it replaces. **S** again to come back.
+
+The placeholders are scaffolding, not a target. Several of them were
+actively wrong about their own entries in this file (see *A note on square
+waves* at the end). **Where a placeholder and the description here
+disagree, the description wins.**
+
+**Every category below appears in the sound test.** If you add one to the
+engine, add it there too — a cue nobody can identify is a cue that isn't
+really documented, whatever this file says about it.
+
 ### Filename pattern
 
 Same for every category: `{category}-{variant}.wav`, numbered from 1.

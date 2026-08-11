@@ -51,8 +51,30 @@ The game opens to a spoken menu rather than dropping you into a park.
 | **Back to the park**  | Replaces the above once a park exists           |
 | **Start a new park**  | Throws this park away and spawns another        |
 | **Settings**          | Same settings screen, and closing returns here  |
+| **Sound test**        | Every cue in the game, with what it means       |
 | **Controls**          | Reads the control list aloud                    |
 | **Quit**              | Leaves the game                                 |
+
+### Sound test
+
+A world made entirely of sound is unusable until you know which sound is
+which, and there was no way to learn that except triggering each cue in
+play and reasoning backwards.
+
+**Up / Down** to choose, **Enter** to hear it, **Right** to say what it
+means. It also tells you whether you're hearing a recording or the built-in
+placeholder.
+
+It doubles as the recording workstation:
+
+| Key | |
+| --- | --- |
+| **S** | Switch between your recordings and the built-in sounds |
+| **R** | Reload recordings from disk — no restart after saving a take |
+
+So the loop is: record, **R**, **Enter** to hear it, **S** to hear what it
+replaced, **S** again. The same switch lives in Settings as *Use recordings
+when available*, and it applies to the whole game, not just this screen.
 
 **Esc** in the park comes back here — it no longer quits outright. Quit
 lives in the menu, so it takes a deliberate choice rather than one keypress
