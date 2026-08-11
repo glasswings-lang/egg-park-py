@@ -108,6 +108,20 @@ you'd go looking when a sound doesn't play.
 
 `sounds.txt` is not committed. It names paths on your machine.
 
+## Tests
+
+```
+python tests/test_soundlist.py      # sounds.txt parsing and the template
+python tests/test_sound_wiring.py   # every sound is registered everywhere
+```
+
+Plain Python, no pytest. They read `main.py` as text rather than importing
+it, because importing it opens a window.
+
+`test_sound_wiring.py` is the one that matters when changing sounds: adding
+a cue means touching four separate places, and forgetting one fails
+silently. It prints the checklist when it catches you.
+
 **Esc** in the park comes back here — it no longer quits outright. Quit
 lives in the menu, so it takes a deliberate choice rather than one keypress
 with no confirmation.
