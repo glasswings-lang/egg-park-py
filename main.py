@@ -978,13 +978,37 @@ def _parse_sounds_list():
         return wanted
 
     for n, raw in enumerate(lines, start=1):
+        # Three ways a line is "just writing", not an instruction. All three
+        # exist so the explaining can be done in PLAIN PROSE instead of every
+        # line needing a # in front of it — a hundred lines each starting
+        # with a hash is a hundred spoken "hash"es to a screen reader, which
+        # made the file that explains everything the hardest thing to read.
+        if raw[:1] in (' ', '\t'):
+            # Indented: a worked example, so ignored. But if it names a real
+            # sound AND points at a file that actually exists, it isn't an
+            # example — it's someone's real line that picked up a stray
+            # space, and swallowing it silently is the failure this whole
+            # file is built to avoid. The template's own examples point at
+            # C:\Users\you\... which exists nowhere, so they stay quiet.
+            maybe = raw.split('#', 1)[0].strip()
+            if '=' in maybe:
+                cue, path = (p.strip().strip('"').strip("'")
+                             for p in maybe.split('=', 1))
+                cue = cue.lower().replace(' ', '-').replace('_', '-')
+                full = (path if os.path.isabs(path)
+                        else os.path.join(_script_dir, path)) if path else ''
+                if cue in _SAMPLE_CATEGORIES and full and os.path.isfile(full):
+                    _sound_list_problems.append(
+                        (n, f'line {n} for {cue} starts with a space, so it '
+                            'is being treated as an example and ignored. '
+                            'Move it to the very start of the line.'))
+            continue
+        if raw.lstrip().startswith('#'):
+            continue                      # switched off on purpose
+        if '=' not in raw:
+            continue                      # ordinary sentence; not for us
         line = raw.split('#', 1)[0].strip()
         if not line:
-            continue
-        if '=' not in line:
-            _sound_list_problems.append(
-                (n, f'line {n} has no equals sign, so I could not tell '
-                    'which sound it is for'))
             continue
         cue, path = (part.strip() for part in line.split('=', 1))
         cue = cue.lower().replace(' ', '-').replace('_', '-')
@@ -1015,62 +1039,87 @@ def write_sounds_template(force=False):
     if os.path.isfile(SOUNDS_LIST_FILE) and not force:
         return False
     lines = [
-        'Egg Park - your own sound files',
-        '===============================',
+        'EGG PARK - USING YOUR OWN SOUNDS',
         '',
-        'This is how you tell the game to use a recording of yours, without',
-        'renaming it or moving it anywhere.',
+        'You can record your own sounds and have the game use them instead of',
+        'the beeps it comes with. You do not have to rename anything, and you',
+        'do not have to move any files.',
         '',
-        'One line per sound, like this:',
+        'Further down, every sound in the game is listed. Each one gets two',
+        'lines: what it is, and a line to fill in. They look like this.',
         '',
-        '    egg-call = C:\\Users\\you\\recordings\\my egg call.wav',
-        '',
-        'Paths can be anywhere on your computer, or relative to this folder.',
-        'Spaces are fine. Quotes are optional.',
-        '',
-        'Write the same sound more than once to give it several versions, and',
-        'the game will pick between them at random:',
-        '',
-        '    footstep = recordings\\step one.wav',
-        '    footstep = recordings\\step two.wav',
-        '',
-        'A line here replaces whatever is in the samples folder for that',
-        'sound. Anything left commented out keeps using the built-in tone.',
-        '',
-        'HOW TO USE ONE',
-        '',
-        'Every sound below has two lines. The first describes it. The second',
-        'is the one you fill in - it is the line with the equals sign.',
-        '',
-        'Delete the hash from THAT line, and put your file after the equals',
-        'sign. Leave the description line alone. So this:',
-        '',
-        '    # Footstep - Your own feet on open ground.',
+        '    Footstep - Your own feet on open ground.',
         '    # footstep = ',
         '',
-        'becomes this:',
+        'To use your own recording, delete the # from the start of the second',
+        'line, and type where your file is after the equals sign.',
         '',
-        '    # Footstep - Your own feet on open ground.',
-        '    footstep = C:\\Users\\you\\recordings\\step.wav',
+        '    Footstep - Your own feet on open ground.',
+        '    footstep = C:\\Users\\you\\recordings\\my footstep.wav',
         '',
-        'Anything still starting with a hash is ignored.',
+        'Then save this file, and press R in the Sound test.',
         '',
-        'In the game: main menu, Sound test. R reloads this file, Enter plays',
-        'the sound, S switches between your recordings and the built-in ones.',
+        'That is the whole thing. The rest of this is only if you want it.',
         '',
+        '',
+        'A FEW THINGS THAT MIGHT COME UP',
+        '',
+        'The recording can live anywhere on your computer. Spaces in the name',
+        'are fine. You do not need quote marks.',
+        '',
+        'Leave a line alone and the game keeps using its own built-in sound',
+        'for that one. You never have to fill all of these in. One is fine.',
+        '',
+        'You can give one sound several recordings by writing it more than',
+        'once, and the game will pick between them at random.',
+        '',
+        '    footstep = C:\\Users\\you\\recordings\\step one.wav',
+        '    footstep = C:\\Users\\you\\recordings\\step two.wav',
+        '',
+        'Nothing you type here can break the game. If it cannot find a file,',
+        'or does not recognise a name, it says so and carries on with its own',
+        'sound. Press P in the Sound test to hear what it did not like.',
+        '',
+        '',
+        'HOW THIS FILE IS READ, IF YOU ARE CURIOUS',
+        '',
+        'A line counts as an instruction only if it has an equals sign in it,',
+        'starts at the very beginning of the line, and does not start with a',
+        '# symbol.',
+        '',
+        'So: sentences like this one are ignored. Indented lines are ignored,',
+        'which is why the examples above do nothing. And a # at the start',
+        'switches a line off.',
+        '',
+        'You can write yourself notes anywhere in here.',
+        '',
+        '',
+        'IN THE GAME',
+        '',
+        'Main menu, then Sound test.',
+        '',
+        '    Up and Down   move through the sounds',
+        '    Enter         play the one you are on',
+        '    Right         say what it is for',
+        '    S             switch between your recordings and the built-in ones',
+        '    R             load this file again, after you save it',
+        '    P             read out anything wrong with this file',
+        '    F             open this file',
+        '',
+        '',
+        'THE SOUNDS',
         '',
     ]
     body = []
     for category, label, meaning, _getter in SOUND_CATALOGUE:
-        body.append(f'# {label} - {meaning}')
+        body.append(f'{label} - {meaning}')
         body.append(f'# {category} = ')
         body.append('')
-    body.append('# Background sound - Plays under everything, all the time. '
-                'Not a cue, so it is not in the sound test.')
+    body.append('Background sound - Plays quietly under everything, all the '
+                'time. Not a cue, so it is not in the Sound test.')
     body.append('# ambience = ')
     body.append('')
-    text = '\n'.join('# ' + line if line else '#' for line in lines)
-    text += '\n' + '\n'.join(body) + '\n'
+    text = '\n'.join(lines) + '\n' + '\n'.join(body) + '\n'
     try:
         tmp = SOUNDS_LIST_FILE + '.tmp'
         with open(tmp, 'w', encoding='utf-8') as f:

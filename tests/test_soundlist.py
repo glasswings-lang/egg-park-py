@@ -69,8 +69,10 @@ body = open(PATH, encoding='utf-8').read()
 check('refuses to overwrite an existing one', template() is False)
 check('every cue is named', all(c in body for c in ('egg-call', 'footstep', 'refuse')))
 check('meanings are included', 'An egg calling.' in body)
-check('every real line is commented out',
-      all(l.startswith('#') or not l.strip() for l in body.splitlines()))
+check('every fill-in line is switched off',
+      all(l.startswith('# ') for l in body.splitlines() if ' = ' in l and not l.startswith(' ')))
+check('the explaining is NOT hash-prefixed',
+      sum(1 for l in body.splitlines() if l.startswith('#')) < 8)
 check('parses to nothing while untouched', parse() == {})
 check('and reports no problems', problems == [])
 check('force rewrites', template(force=True) is True)
@@ -86,8 +88,8 @@ check('relative to the game folder', parse() == {'egg-call': [real]})
 write(f'egg-call = "{real}"\n')
 check('quotes are optional', parse() == {'egg-call': [real]})
 
-write(f'  EGG_CALL  =  {real}  \n')
-check('case, spaces and underscores forgiven', parse() == {'egg-call': [real]})
+write(f'EGG_CALL  =  {real}  \n')
+check('case, spacing and underscores forgiven', parse() == {'egg-call': [real]})
 
 write(f'footstep = {real}\nfootstep = my take.wav\n')
 check('same cue twice gives two variants', len(parse().get('footstep', [])) == 2)
@@ -101,12 +103,33 @@ check('trailing comment stripped', parse() == {'footstep': [real]})
 write('\n\n   \n')
 check('blank file is fine', parse() == {})
 
+# The three ways a line is "just writing". These exist so the file can
+# explain itself in plain prose instead of putting a # in front of every
+# line - a hundred spoken hashes made the instructions the hardest part.
+write('    footstep = C:\\Users\\you\\recordings\\step.wav\n')
+check('an indented example is ignored', parse() == {} and problems == [])
+
+write('\t footstep = C:\\Users\\you\\recordings\\step.wav\n')
+check('tab-indented too', parse() == {} and problems == [])
+
+# ...but an indented line pointing at a file that REALLY EXISTS is not an
+# example, it is a real line with a stray space, and saying nothing about
+# it is the silent failure this file exists to prevent.
+write(f'    footstep = {real}\n')
+parse()
+check('an indented line that would have worked is reported, not swallowed',
+      len(problems) == 1 and 'space' in problems[0][1])
+
+write('This sentence explains something and is ignored.\n'
+      f'footstep = {real}\n')
+check('a plain sentence is ignored', parse() == {'footstep': [real]})
+
+write('Up and Down move through the sounds\n')
+check('prose with no equals sign raises no complaint',
+      parse() == {} and problems == [])
+
 print()
 print('problems are reported, not swallowed:')
-write('egg-call\n')
-parse()
-check('a line with no equals sign', len(problems) == 1)
-
 write('wibble = somewhere.wav\n')
 parse()
 check('an unknown cue name', len(problems) == 1 and 'wibble' in problems[0][1])
