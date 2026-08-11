@@ -606,6 +606,22 @@ def _sine(frequency, duration, attack=0.10, decay=None, release=0.10):
 
 
 def _square(frequency, duration, attack=0.02, decay=None, release=0.02):
+    """Square wave. NOTHING USES THIS, on purpose — read before you do.
+
+    A square wave with a fast attack in the low-mid register is not merely
+    a harsh sound, it is *specifically* the synthesis medical and emergency
+    alarms are built from: rich odd harmonics, no attack transient to soften
+    the onset. Three of this game's gentlest messages — "hands full", "that
+    did nothing", "this basket is full" — were built this way, and the first
+    of them was reported as sounding for all the world like an EMS alarm.
+    That was an accurate identification, not an exaggeration.
+
+    Kept because it's a legitimate primitive and the harmonics are useful.
+    But if you're reaching for it for anything that isn't an emergency,
+    that's the mistake. Even the game's one real alarm (`egg-warning`) uses
+    a falling triangle pair instead, so it can be urgent without sounding
+    clinical.
+    """
     if decay is None:
         decay = max(0.01, duration - attack - release)
     return pyglet.media.StaticSource(synthesis.Square(
@@ -692,7 +708,17 @@ _collect_source = _triangle(440.0, 0.35, attack=0.02, release=0.03)         # A4
 _refuse_source = _sine(246.94, 0.22, attack=0.05, release=0.12)  # B3, off-scale           # A2 buzz
 _basket_discover_source = _sine(174.61, 1.4, attack=0.20, release=0.20)     # F3 — warm "found"
 _deposit_source = _triangle(110.0, 0.4, attack=0.02, release=0.02)          # A2 thump
-_basket_full_source = _square(146.83, 0.20, attack=0.005, release=0.02)     # D3 — denied
+# "This basket is full." GOOD NEWS — you filled it. It was a square wave
+# with a 5 ms attack, i.e. the medical-alarm palette, for the sound of a job
+# finishing.
+#
+# Warm, short, and off the scale (Db3 sits between basket C3 and basket D3),
+# so it belongs to the basket register without ever being mistaken for a
+# chime. Short on purpose: a long sustained tone down here IS a chime.
+#
+# Deliberately a single tone, not a falling pair — direction is reserved for
+# the menu cues and the egg alarm, and this is neither.
+_basket_full_source = _triangle(138.59, 0.30, attack=0.03, release=0.14)  # Db3     # D3 — denied
 _hatch_in_basket_source = _sine(523.25, 1.6, attack=0.30, release=0.30)     # C5 — bright bloom
 _wild_bird_flyoff_source = _noise_burst(WILD_BIRD_DISPERSAL,
                                          attack=0.05, decay=WILD_BIRD_DISPERSAL - 0.2, release=0.15)
@@ -739,7 +765,17 @@ _scan_start_source = _triangle(659.25, 0.18, attack=0.01, release=0.04)         
 _bird_ambient_source = _noise_burst(0.18, attack=0.02, decay=0.08, release=0.06)
 
 # Fumble — softer cousin of refuse for non-pickup "didn't work" moments.
-_fumble_source = _square(196.00, 0.16, attack=0.005, release=0.02)              # G3
+# "That press did nothing." F with no basket under you, F with empty hands,
+# a scan that found nothing in range.
+#
+# Same square-with-a-click problem as the other two. It pairs with `refuse`
+# as the game's two soft negatives, so it's built to match: same family,
+# lower and drier. Ab3 is off the pentatonic and sits below refuse's B3,
+# which makes them a low/high pair rather than two unrelated noises.
+#
+# Kept out of the basket register (110-196) despite being a low sound — a
+# short tone down there among the chimes is one more thing to disentangle.
+_fumble_source = _triangle(207.65, 0.14, attack=0.025, release=0.06)  # Ab3              # G3
 
 # Boot — a warm bloom that announces the game has loaded.
 _boot_source = _sine(329.63, 1.2, attack=0.25, release=0.30)                    # E4

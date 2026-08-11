@@ -207,8 +207,11 @@ you like; the engine plays them at the right positions.
   past while holding one sets it off. Treat it like a footstep for fatigue
   purposes, not like an event.
 - **It is not an error sound.** Nothing went wrong and you didn't press
-  anything — you walked past something you'll come back for. It should be
-  gentler than `fumble`, which at least follows a key you actually pressed.
+  anything — you walked past something you'll come back for.
+- **`refuse` and `fumble` are a pair.** Both are soft negatives and neither
+  is harsher than the other; they differ in *weight and pitch*, not in
+  aggression. Record them back to back. Since this one fires far more often,
+  it's the one to judge for fatigue.
 - **The placeholder used to contradict this entry**: a square wave at 110 Hz
   with a 5 ms attack, i.e. a buzz with a click on the front, at half volume,
   played right at the listener. It was genuinely frightening. The spec here
@@ -244,6 +247,12 @@ you like; the engine plays them at the right positions.
 - **Character**: Same family as `refuse` but heftier — "this basket has
   enough." Could share its character; consider recording back-to-back so
   they pair.
+- **This is good news.** You filled it. It reports a job finishing, not a
+  failure — warm and closed, never a warning. The placeholder was a square
+  wave with a 5 ms attack, which is the medical-alarm palette, for the sound
+  of something going right.
+- Keep it **short**. A long sustained tone in the basket register is a
+  chime, and this must never be mistaken for one.
 - **Files** (1):
   - `basket-full.wav`
 
@@ -389,11 +398,34 @@ you like; the engine plays them at the right positions.
   `refuse` (which is specifically for over-carry-cap pickup attempts).
 - **Spatial**: no.
 - **Duration**: 0.15–0.30 s.
-- **Character**: Softer than `refuse`. A small dry tick, an empty thunk,
-  a quiet "nothing here." Should communicate "your input did nothing"
-  without sounding scolding.
+- **Character**: A small dry tick, an empty thunk, a quiet "nothing here."
+  Should communicate "your input did nothing" without sounding scolding.
+- **Pairs with `refuse`** — see that entry. Neither is harsher than the
+  other; they differ in weight and pitch. This one is the lower, drier of
+  the two.
 - **Files** (1):
   - `fumble.wav`
+
+---
+
+## A note on square waves
+
+All three of the game's soft negatives — `refuse`, `fumble`, `basket-full` —
+were originally square waves with 5 ms attacks, and all three contradicted
+their own entries above.
+
+That combination is not merely harsh, it is **specifically** the synthesis
+used by medical and emergency alarms: rich odd harmonics, no attack
+transient, low-mid register. It was reported as sounding "for all the world
+like an EMS alarm", which is not a coincidence — it's the same recipe.
+
+**Only one sound in this game should ever be built that way, and it isn't
+built that way either.** `egg-warning` is the single genuine alarm, and it
+deliberately uses a falling triangle pair rather than a square, so it can be
+urgent without being clinical.
+
+If you find yourself reaching for a square wave with a fast attack for
+anything that isn't an emergency, that's the mistake.
 
 ### `boot` — 1 variant
 - **Trigger**: Fires once at game start, alongside the "Egg Park ready"
