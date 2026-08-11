@@ -2,6 +2,11 @@
 __pycache__/
 *.py[cod]
 
+# Where you point the game at your own recordings. Generated on first run
+# with every cue listed and commented out, so a fresh clone writes its own.
+# Yours names paths on your machine and nobody else's would work.
+sounds.txt
+
 # Local preferences. Every setting has a default in SETTINGS_MENU, and
 # load_settings() copes fine when the file is absent — so a fresh clone
 # starts from sane defaults rather than someone else's volume levels.

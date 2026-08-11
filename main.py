@@ -764,7 +764,7 @@ _footstep_basket_source = _noise_burst(0.18, attack=0.01, decay=0.09, release=0.
 # five times.
 _egg_warning_source = _triangle(622.25, 0.10, attack=0.005, release=0.03)   # Eb5
 _egg_warning_second_source = _triangle(466.16, 0.15, attack=0.005, release=0.05)  # Bb4
-EGG_WARNING_GAP = 0.11  # seconds between the two tones            # E5
+EGG_WARNING_GAP = 0.11  # seconds between the two tones
 
 # Scan start — quick chime marking the moment of pressing Space.
 _scan_start_source = _triangle(659.25, 0.18, attack=0.01, release=0.04)         # E5
@@ -772,7 +772,6 @@ _scan_start_source = _triangle(659.25, 0.18, attack=0.01, release=0.04)         
 # Bird ambient — short noise burst, brighter than a footstep.
 _bird_ambient_source = _noise_burst(0.18, attack=0.02, decay=0.08, release=0.06)
 
-# Fumble — softer cousin of refuse for non-pickup "didn't work" moments.
 # "That press did nothing." F with no basket under you, F with empty hands,
 # a scan that found nothing in range.
 #
@@ -783,7 +782,7 @@ _bird_ambient_source = _noise_burst(0.18, attack=0.02, decay=0.08, release=0.06)
 #
 # Kept out of the basket register (110-196) despite being a low sound — a
 # short tone down there among the chimes is one more thing to disentangle.
-_fumble_source = _triangle(207.65, 0.14, attack=0.025, release=0.06)  # Ab3              # G3
+_fumble_source = _triangle(207.65, 0.14, attack=0.025, release=0.06)  # Ab3
 
 # Boot — a warm bloom that announces the game has loaded.
 _boot_source = _sine(329.63, 1.2, attack=0.25, release=0.30)                    # E4
@@ -923,15 +922,219 @@ def has_recording(category):
     return bool(_sample_bank.get(category))
 
 
-_load_sample_bank()
+# The bank is built further down, once sounds.txt can be read too — see
+# rebuild_sample_bank. Loading here would catch only the folder scan.
+
+
+# ---------------------------------------------------------------------------
+# sounds.txt — pointing at your own files, by hand, without renaming anything
+# ---------------------------------------------------------------------------
+#
+# The folder scan above requires a file to be named EXACTLY right and to sit
+# in EXACTLY one folder. That is a coding task wearing a filename: it means
+# "use this recording" is spelled by renaming `take 4 good one.wav` to
+# `basket-chime-2.wav` and moving it.
+#
+# sounds.txt is the other way in. One line per sound:
+#
+#     egg-call = C:\Users\you\recordings\take 4 good one.wav
+#
+# Paths can be absolute or relative to the game folder, spaces are fine, and
+# quotes are optional. Several lines for the same cue give it several
+# variants, picked between at random exactly like numbered files.
+#
+# A line here REPLACES the folder-scanned files for that cue rather than
+# adding to them, so "which files does this sound use" has one answer and
+# it's the one written down.
+#
+# Nothing here is required. The file is generated with every cue listed and
+# commented out, so the names never have to be memorised or typed from
+# scratch — uncomment a line and put a path after the equals sign.
+
+SOUNDS_LIST_FILE = os.path.join(_script_dir, 'sounds.txt')
+
+# (line number, what went wrong) for anything sounds.txt asked for and didn't
+# get. Kept rather than printed: this runs under pythonw with no console, and
+# a silent failure to load someone's recording is the worst possible outcome.
+_sound_list_problems = []
+
+
+def _parse_sounds_list():
+    """Read sounds.txt into {category: [paths]}. Never raises.
+
+    Unknown cue names and missing files are recorded as problems rather than
+    ignored. A typo that silently does nothing is indistinguishable from a
+    file that didn't load, and you can't see either one.
+    """
+    _sound_list_problems.clear()
+    wanted = {}
+    if not os.path.isfile(SOUNDS_LIST_FILE):
+        return wanted
+    try:
+        with open(SOUNDS_LIST_FILE, 'r', encoding='utf-8', errors='replace') as f:
+            lines = f.readlines()
+    except Exception as exc:
+        _sound_list_problems.append((0, f'could not open sounds.txt: {exc}'))
+        return wanted
+
+    for n, raw in enumerate(lines, start=1):
+        line = raw.split('#', 1)[0].strip()
+        if not line:
+            continue
+        if '=' not in line:
+            _sound_list_problems.append(
+                (n, f'line {n} has no equals sign, so I could not tell '
+                    'which sound it is for'))
+            continue
+        cue, path = (part.strip() for part in line.split('=', 1))
+        cue = cue.lower().replace(' ', '-').replace('_', '-')
+        path = path.strip().strip('"').strip("'")
+        if cue not in _SAMPLE_CATEGORIES:
+            _sound_list_problems.append(
+                (n, f'line {n}: there is no sound called {cue}'))
+            continue
+        if not path:
+            _sound_list_problems.append((n, f'line {n}: no file given for {cue}'))
+            continue
+        full = path if os.path.isabs(path) else os.path.join(_script_dir, path)
+        if not os.path.isfile(full):
+            _sound_list_problems.append(
+                (n, f'line {n}: the file for {cue} is not there'))
+            continue
+        wanted.setdefault(cue, []).append(full)
+    return wanted
+
+
+def write_sounds_template(force=False):
+    """Create sounds.txt, listing every cue with what it means.
+
+    Generated rather than shipped so it can never drift from the actual cue
+    list, and so the names never have to be typed from memory. Won't
+    overwrite an existing file unless asked — this is someone's config.
+    """
+    if os.path.isfile(SOUNDS_LIST_FILE) and not force:
+        return False
+    lines = [
+        'Egg Park - your own sound files',
+        '===============================',
+        '',
+        'This is how you tell the game to use a recording of yours, without',
+        'renaming it or moving it anywhere.',
+        '',
+        'One line per sound, like this:',
+        '',
+        '    egg-call = C:\\Users\\you\\recordings\\my egg call.wav',
+        '',
+        'Paths can be anywhere on your computer, or relative to this folder.',
+        'Spaces are fine. Quotes are optional.',
+        '',
+        'Write the same sound more than once to give it several versions, and',
+        'the game will pick between them at random:',
+        '',
+        '    footstep = recordings\\step one.wav',
+        '    footstep = recordings\\step two.wav',
+        '',
+        'A line here replaces whatever is in the samples folder for that',
+        'sound. Anything left commented out keeps using the built-in tone.',
+        '',
+        'HOW TO USE ONE',
+        '',
+        'Every sound below has two lines. The first describes it. The second',
+        'is the one you fill in - it is the line with the equals sign.',
+        '',
+        'Delete the hash from THAT line, and put your file after the equals',
+        'sign. Leave the description line alone. So this:',
+        '',
+        '    # Footstep - Your own feet on open ground.',
+        '    # footstep = ',
+        '',
+        'becomes this:',
+        '',
+        '    # Footstep - Your own feet on open ground.',
+        '    footstep = C:\\Users\\you\\recordings\\step.wav',
+        '',
+        'Anything still starting with a hash is ignored.',
+        '',
+        'In the game: main menu, Sound test. R reloads this file, Enter plays',
+        'the sound, S switches between your recordings and the built-in ones.',
+        '',
+        '',
+    ]
+    body = []
+    for category, label, meaning, _getter in SOUND_CATALOGUE:
+        body.append(f'# {label} - {meaning}')
+        body.append(f'# {category} = ')
+        body.append('')
+    body.append('# Background sound - Plays under everything, all the time. '
+                'Not a cue, so it is not in the sound test.')
+    body.append('# ambience = ')
+    body.append('')
+    text = '\n'.join('# ' + line if line else '#' for line in lines)
+    text += '\n' + '\n'.join(body) + '\n'
+    try:
+        tmp = SOUNDS_LIST_FILE + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            f.write(text)
+        os.replace(tmp, SOUNDS_LIST_FILE)
+        return True
+    except Exception as exc:
+        _sound_list_problems.append((0, f'could not write sounds.txt: {exc}'))
+        return False
+
+
+def sound_list_problem_for(category):
+    """The first complaint mentioning this cue, or ''. Used by the sound test
+    so a broken path is heard where you'd look for it."""
+    for _n, message in _sound_list_problems:
+        if category in message:
+            return message
+    return ''
+
+
+def rebuild_sample_bank():
+    """Re-read sounds.txt and re-scan the samples folder. Says nothing.
+
+    Order matters: the folder scan fills the bank, then sounds.txt overrides
+    whatever it names. An explicit instruction should beat a filename
+    convention, or writing one down would do nothing whenever a same-named
+    file happened to exist.
+
+    Silent so it can run at import, before there is anywhere to speak to.
+    """
+    _sample_bank.clear()
+    _load_sample_bank()
+    for cue, paths in _parse_sounds_list().items():
+        sources = [s for s in (_load_one_sample(p) for p in paths) if s]
+        if sources:
+            _sample_bank[cue] = sources
+        else:
+            _sound_list_problems.append(
+                (0, f'the file for {cue} could not be read as sound'))
 
 
 def reload_sample_bank():
-    """Re-scan public/audio/samples without restarting the game."""
-    _sample_bank.clear()
-    _load_sample_bank()
+    """rebuild_sample_bank, then report out loud. Bound to R."""
+    rebuild_sample_bank()
     total = sum(len(v) for v in _sample_bank.values())
-    say(f'Reloaded {total} sample files.' if total else 'Sample bank empty.')
+    cues = len(_sample_bank)
+    parts = []
+    parts.append(f'{total} sound files across {cues} sounds.' if total
+                 else 'No recordings loaded. Using the built-in sounds.')
+    if _sound_list_problems:
+        n = len(_sound_list_problems)
+        parts.append(f'{n} problem{"s" if n != 1 else ""} in sounds dot text. '
+                     'Press P here to hear them.')
+    say(' '.join(parts))
+
+
+def speak_sound_list_problems():
+    if not _sound_list_problems:
+        say('No problems in sounds dot text.')
+        return
+    say('. '.join(message for _n, message in _sound_list_problems) + '.')
+
+
+rebuild_sample_bank()
 
 
 # ============================================================================
@@ -1254,9 +1457,10 @@ def open_sound_test():
     _in_sound_test = True
     _sound_test_focus = 0
     fire_menu_open()
-    say('Sound test. Up and down to choose, Enter to hear it, '
-        'Right to say what it means. S switches between recordings and the '
-        'built-in sounds. R reloads recordings from disk. Escape goes back.')
+    say('Sound test. Up and down to choose, Enter to hear it, Right to say '
+        'what it means. S switches between recordings and the built-in '
+        'sounds. F opens the file where you point at your own recordings. '
+        'R loads them. P reads any problems. Escape goes back.')
     _speak_sound_test_item()
 
 
@@ -1284,7 +1488,11 @@ def _speak_sound_test_item():
                  else 'recorded, but using the built-in')
     else:
         state = 'built-in'
-    say(f'{label}. {state}.')
+    # A broken line in sounds.txt is announced HERE, on the cue it was meant
+    # to supply. That's where you'd go looking when a recording doesn't play,
+    # and it saves reading an error list to find out which one failed.
+    problem = sound_list_problem_for(category)
+    say(f'{label}. {state}. {problem}' if problem else f'{label}. {state}.')
 
 
 def sound_test_focus_move(direction):
@@ -1312,6 +1520,21 @@ def sound_test_play():
 def sound_test_explain():
     _category, label, meaning, _getter = _sound_test_entry()
     say(f'{label}. {meaning}')
+
+
+def open_sounds_file():
+    """Open sounds.txt in whatever the system uses for .txt files.
+
+    The whole point of that file is being editable without touching code, so
+    getting to it shouldn't mean navigating to a folder either. Created first
+    if it isn't there yet, so this key always leads somewhere.
+    """
+    write_sounds_template()
+    try:
+        os.startfile(SOUNDS_LIST_FILE)  # noqa: S606 - Windows shell open
+        say('Opened sounds dot text. Save it, then press R here to load it.')
+    except Exception as exc:
+        say(f'Could not open the file. It is at {SOUNDS_LIST_FILE}. {exc}')
 
 
 def sound_test_toggle_source():
@@ -1867,7 +2090,10 @@ def on_key_press(symbol, modifiers):
             sound_test_toggle_source()
         elif symbol == key.R:
             reload_sample_bank()
-            _speak_sound_test_item()
+        elif symbol == key.P:
+            speak_sound_list_problems()
+        elif symbol == key.F:
+            open_sounds_file()
         else:
             return None
         return pyglet.event.EVENT_HANDLED
@@ -2146,6 +2372,10 @@ window.activate()
 pyglet.clock.schedule_interval(update, 1 / 60)
 _next_egg_call_at = now() + 0.5
 _next_origin_chime_at = now() + 2.0  # let boot chime + speech land first
+
+# Generate sounds.txt on first run, now that SOUND_CATALOGUE exists to
+# describe every cue in it. Never overwrites an existing one.
+write_sounds_template()
 
 open_main_menu(announce='Egg Park.')
 

@@ -72,9 +72,41 @@ It doubles as the recording workstation:
 | **S** | Switch between your recordings and the built-in sounds |
 | **R** | Reload recordings from disk — no restart after saving a take |
 
+| **F** | Open `sounds.txt`, where you point at your own recordings |
+| **P** | Read out any problems with that file |
+
 So the loop is: record, **R**, **Enter** to hear it, **S** to hear what it
 replaced, **S** again. The same switch lives in Settings as *Use recordings
 when available*, and it applies to the whole game, not just this screen.
+
+### Using your own recordings — `sounds.txt`
+
+You can drop files into `public/audio/samples/` named exactly right
+(`egg-call-1.wav` and so on) and they'll be found. But that means renaming
+your takes and moving them, which is a coding task wearing a filename.
+
+`sounds.txt` is the other way. One line per sound:
+
+```
+egg-call = C:\Users\you\recordings\take 4 good one.wav
+```
+
+Paths can be anywhere on your machine or relative to the game folder.
+Spaces are fine, quotes optional. Write the same sound twice to give it two
+versions and the game picks between them at random. A line here **replaces**
+whatever the samples folder has for that cue, so "which files does this use"
+has one answer and it's written down.
+
+It's generated on first run with **every cue listed, commented out, with
+what each one means** — so nothing has to be typed from memory. Uncomment a
+line, put a path after the equals sign, save, press **R**.
+
+Nothing fails silently. A typo'd cue name, a missing file, a line with no
+equals sign — each is reported, and pressing **P** reads them out. A broken
+line is also announced on the cue it was meant to supply, which is where
+you'd go looking when a sound doesn't play.
+
+`sounds.txt` is not committed. It names paths on your machine.
 
 **Esc** in the park comes back here — it no longer quits outright. Quit
 lives in the menu, so it takes a deliberate choice rather than one keypress
