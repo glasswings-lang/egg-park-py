@@ -58,12 +58,12 @@ A sound has to be registered in **four** places, and forgetting any of them
 fails quietly. Nothing raises; the game just behaves slightly wrongly
 forever.
 
-1. **Build the source** in `main.py` — `_sine`, `_triangle` or
+1. **Build the source** in `eggpark/sounds.py` — `_sine`, `_triangle` or
    `_noise_burst`, near the other `_*_source` definitions. Read *A note on
    square waves* at the bottom of this file first.
-2. **Name it in `_SAMPLE_CATEGORIES`.** Lowercase, hyphenated. This is what
+2. **Name it in `_SAMPLE_CATEGORIES`** (`eggpark/sounds.py`). Lowercase, hyphenated. This is what
    the filename and the `sounds.txt` line will use.
-3. **Give it a volume slider in `_VOLUME_CATEGORIES`** — `vol_<name>` with
+3. **Give it a volume slider in `_VOLUME_CATEGORIES`** (`eggpark/prefs.py`) — `vol_<name>` with
    hyphens turned into underscores. *Or* deliberately route it through
    another cue's slider, and say so in `SHARES_VOLUME_WITH` in
    `tests/test_sound_wiring.py`. Two states of one thing should share one
@@ -72,7 +72,7 @@ forever.
    `pick_source(category, fallback=…)` and `_play(…, category=…)`. Never
    reach for a `_source` directly — that's what makes the recordings switch
    a single switch instead of twenty-four.
-5. **Add it to `SOUND_CATALOGUE`** with a label and *what it means*. A cue
+5. **Add it to `SOUND_CATALOGUE`** (`eggpark/sounds.py`) with a label and *what it means*. A cue
    nobody can identify is a cue that isn't really documented, whatever this
    file says about it.
 6. **Write a `### ` section for it here**, so there's something to record

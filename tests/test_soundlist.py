@@ -1,6 +1,6 @@
-"""Exercise sounds.txt parsing and template generation from main.py.
+"""Exercise sounds.txt parsing and template generation from eggpark/sounds.py.
 
-main.py opens a window on import, so the functions are lifted out by AST and
+Loading the game opens a window, so the functions are lifted out by AST and
 run in a controlled namespace. That means this tests the REAL source, not a
 copy of it - a copy would drift and prove nothing.
 """
@@ -8,9 +8,10 @@ import ast
 import os
 import sys
 import tempfile
+import types
 
 MAIN = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                    'main.py')
+                    'eggpark', 'sounds.py')
 WANT = ('_parse_sounds_list', 'write_sounds_template', 'sound_list_problem_for')
 
 src = open(MAIN, encoding='utf-8').read()
@@ -19,7 +20,7 @@ tree = ast.parse(src)
 sandbox = tempfile.mkdtemp(prefix='soundlist-test-')
 ns = {
     'os': os,
-    '_script_dir': sandbox,
+    'config': types.SimpleNamespace(_script_dir=sandbox),
     'SOUNDS_LIST_FILE': os.path.join(sandbox, 'sounds.txt'),
     '_sound_list_problems': [],
     '_SAMPLE_CATEGORIES': ('egg-call', 'footstep', 'refuse', 'ambience'),

@@ -12,15 +12,16 @@ None of those raise. The game just behaves slightly wrongly forever.
 
 Run: python tests/test_sound_wiring.py
 
-Read by regex rather than by importing, because main.py opens a window on
-import.
+Read by regex rather than by importing, because loading the game opens a
+window. The registrations live in different files under eggpark/, so all of
+them are read as one text.
 """
 import os
 import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MAIN = os.path.join(ROOT, 'main.py')
+PACKAGE = os.path.join(ROOT, 'eggpark')
 SOUNDS_MD = os.path.join(ROOT, 'docs', 'SOUNDS.md')
 
 # --- Deliberate exceptions -------------------------------------------------
@@ -43,7 +44,8 @@ NOT_IN_SOUND_TEST = {
                 '- previewing it would mean sitting through it',
 }
 
-src = open(MAIN, encoding='utf-8').read()
+src = '\n'.join(open(os.path.join(PACKAGE, f), encoding='utf-8').read()
+                for f in sorted(os.listdir(PACKAGE)) if f.endswith('.py'))
 md = open(SOUNDS_MD, encoding='utf-8').read()
 
 

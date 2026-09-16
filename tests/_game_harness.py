@@ -2,7 +2,7 @@
 """Run main.py for a test: on a hidden desktop, silent, and with speech off.
 
     from _game_harness import run_game, check, finish
-    def checks(G):          # G is main.py's globals, game fully booted
+    def checks(G):          # G reaches the whole game by name, fully booted
         check('something', G['...'] == ...)
     run_game(checks)
     finish('test_name')
@@ -60,21 +60,66 @@ def check(label, ok):
         failures.append(label)
 
 
+class Game:
+    """The whole game, reachable by name: `G['eggs']`, `G['try_scan']()`.
+
+    The game is split across the files in eggpark/, and a test shouldn't have
+    to know which file a thing lives in. Reading finds it wherever it is.
+    Writing replaces it IN the file that owns it, which is what makes
+    `G['say'] = spoken.append` work: every caller, in every file, goes through
+    that file's copy.
+    """
+
+    def __init__(self, main_globals):
+        self._main = main_globals
+        self._modules = [m for name, m in sorted(sys.modules.items())
+                         if name.startswith('eggpark.') and m is not None]
+
+    def _owner(self, name):
+        import types
+        for m in self._modules:
+            value = m.__dict__.get(name, _MISSING)
+            if value is not _MISSING and not isinstance(value, types.ModuleType):
+                return m
+        return None
+
+    def __getitem__(self, name):
+        owner = self._owner(name)
+        if owner is not None:
+            return getattr(owner, name)
+        for m in self._modules:           # imported modules: pyglet, time, ...
+            if name in m.__dict__:
+                return m.__dict__[name]
+        return self._main[name]
+
+    def __setitem__(self, name, value):
+        owner = self._owner(name)
+        if owner is None:
+            raise KeyError(f'{name}: no file in eggpark/ defines it')
+        setattr(owner, name, value)
+
+
+_MISSING = object()
+
+
 def run_game(checks):
     os.chdir(ROOT)
+    if ROOT not in sys.path:
+        sys.path.insert(0, ROOT)
     source = open(MAIN, encoding='utf-8').read()
     # main.py picks its own audio drivers; keep it on the silent one.
     source = source.replace("pyglet.options['audio']", '_test_ignored_audio')
-    G = {'__name__': '__main__', '__file__': MAIN, '_test_ignored_audio': {}}
+    main_globals = {'__name__': '__main__', '__file__': MAIN, '_test_ignored_audio': {}}
 
     def fake_run(*a, **k):
+        G = Game(main_globals)
         try:
             checks(G)
         finally:
             G['window'].close()
 
     pyglet.app.run = fake_run
-    exec(compile(source, MAIN, 'exec'), G)
+    exec(compile(source, MAIN, 'exec'), main_globals)
 
 
 def finish(name):

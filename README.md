@@ -147,8 +147,8 @@ python tests/test_park_save.py      # the park survives closing the game
 python tests/test_egg_spread.py     # eggs spread around your baskets, no drift
 ```
 
-Plain Python, no pytest. They read `main.py` as text rather than importing
-it, because importing it opens a window.
+Plain Python, no pytest. The first two read the game's code as text rather
+than running it, because running it opens a window.
 
 The tests that start with `test_scan_guide.py` in the list above are the
 exception: they run the
@@ -226,7 +226,21 @@ with real audio.
 
 ```
 egg-park-py/
-├── main.py            # all game code, single file
+├── main.py            # starts the game: audio setup, then boot
+├── eggpark/           # the game, one file per part
+│   ├── config.py      #   fixed numbers: speeds, distances, ranges
+│   ├── speech.py      #   screen reader speech and the play log
+│   ├── state.py       #   what's in the park: you, eggs, baskets, birds
+│   ├── prefs.py       #   settings and the settings screen
+│   ├── menu.py        #   main menu; starting and restarting a park
+│   ├── sounds.py      #   every sound, recordings, sounds.txt, catalogue
+│   ├── soundtest.py   #   the sound test screen
+│   ├── world.py       #   eggs and baskets: spawning, pickup, deposit
+│   ├── scan.py        #   scanning, B, and the scan guide
+│   ├── flock.py       #   hatching and birds
+│   ├── game.py        #   window, keys, per-frame update, status
+│   └── saving.py      #   saving and loading the park
+├── tests/             # see Tests above
 ├── openal32.dll       # OpenAL Soft (HRTF backend for pyglet)
 ├── docs/
 │   └── SOUNDS.md      # sound design specs / recording plan

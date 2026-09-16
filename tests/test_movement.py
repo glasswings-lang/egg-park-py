@@ -34,9 +34,16 @@ def run_checks(G):
         hiss_before, hiss_now = share_above(raw, sr, 8000), share_above(x, sr, 8000)
         check(f'{name}: energy above 8 kHz {hiss_before:.0%} before, {hiss_now:.1%} now',
               hiss_now < 0.05 and hiss_before > 0.4)
-        check(f'{name}: still has body below 3 kHz ({1 - share_above(x, sr, 3000):.0%} of it)',
-              1 - share_above(x, sr, 3000) > 0.5)
         check(f'{name}: never clips (peak {np.abs(x).max():.2f})', np.abs(x).max() < 0.999)
+    # Body is judged over twenty fresh footsteps, not the one the game made:
+    # each is new random noise, and a single one swings between 45% and 60%
+    # below 3 kHz from run to run. Twenty average 54-57% (unfiltered noise:
+    # 13-14%), so this can't fail by chance and still catches a lost filter.
+    fresh = [samples(G['_lowpassed_noise_burst'](0.12, G['FOOTSTEP_LOWPASS_HZ'], attack=0.005,
+                                                 decay=0.05, release=0.06)) for _ in range(20)]
+    body = np.mean([1 - share_above(x, sr, 3000) for x, sr in fresh])
+    check(f'footsteps still have body below 3 kHz ({body:.0%} of it, averaged over 20)',
+          body > 0.45)
     x, sr = samples(G['_footstep_source'])
     rms = lambda v: np.sqrt((v ** 2).mean())
     print(f'  note loudness now {20 * np.log10(rms(x) / rms(raw)):+.1f} dB against the old hiss')
