@@ -126,14 +126,21 @@ BASKET_TARGET_UNFOUND = 2     # unclaimed baskets kept available at any time
 BASKET_SPAWN_MIN = 45.0       # never closer than this to the player...
 BASKET_SPAWN_MAX = 85.0       # ...nor further than earshot plus a little
 BASKET_MIN_SEPARATION = 25.0  # keep them apart or two chimes fight for the ear
-BASKET_MAX_TOTAL = 24         # ceiling, so a long session can't fill the world
 BASKET_PLACE_ATTEMPTS = 24    # tries to find a spot before giving up this tick
 # Unclaimed baskets left far behind are forgotten. Without this the park
 # silts up with baskets you walked past once and will never return to: a
-# twenty-minute wander spawned seventeen and found two, hit the ceiling, and
-# generation stopped — which is the original three-baskets-forever problem
-# wearing a different hat. Comfortably beyond earshot, so nothing is ever
-# removed while it can still be heard.
+# twenty-minute wander spawned seventeen and found two.
+#
+# This is ALSO why there is no ceiling on the total. There used to be one
+# (24), and discovered baskets counted toward it — so after 24 finds no basket
+# ever appeared again, and since basket capacity and carry capacity both grow
+# from finds, the ceiling froze them too. The three-baskets-forever problem
+# wearing a later hat. Forgetting keeps the unclaimed ones bounded; the
+# discovered ones only grow as fast as a person can walk to them, and only
+# the nearest basket ever chimes, so a big park costs nothing.
+#
+# Comfortably beyond earshot, so nothing is ever removed while it can still
+# be heard.
 BASKET_FORGET_DISTANCE = BASKET_AUDIBLE * 1.75
 
 # Capacity
@@ -1839,8 +1846,6 @@ def maybe_spawn_basket():
     up two metres away from a spot you already walked past reads as a bug,
     not as discovery.
     """
-    if len(baskets) >= BASKET_MAX_TOTAL:
-        return
     if len(unfound_baskets_in_reach()) >= BASKET_TARGET_UNFOUND:
         return
 
