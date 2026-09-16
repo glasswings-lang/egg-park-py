@@ -157,8 +157,24 @@ NUM_EGGS = 4
 EGG_CALL_INTERVAL = 1.5
 EGG_AUDIBLE = 80.0
 COLLECT_RADIUS = 2.0
-EGG_SPAWN_MIN = 20.0
-EGG_SPAWN_MAX = 60.0
+# Where a new egg appears when you pick one up: around one of the baskets
+# you've FOUND, not around you.
+#
+# It used to be 20-60 m from wherever you picked the last one up, with
+# nothing keeping eggs apart. You pick eggs up near home, so early on they
+# piled up around your baskets, all calling at once. And every new egg
+# started from the last pickup spot rather than from home, so over a long
+# session they crept outward: a simulated player was 200+ m from the nearest
+# egg after a hundred pickups.
+#
+# Anchoring to your found baskets keeps eggs within reach of home forever,
+# and the area they can appear in grows as your park does. Before any basket
+# is found, the anchor is where the park began.
+EGG_SPAWN_MIN = 35.0        # from the basket it's placed around
+EGG_SPAWN_MAX = 90.0
+EGG_MIN_SEPARATION = 30.0   # from every other egg lying in the world
+EGG_MIN_FROM_PLAYER = 20.0  # never appears underfoot
+EGG_PLACE_ATTEMPTS = 40     # then settle for the most isolated spot tried
 
 # Baskets
 BASKET_AUDIBLE = 80.0
@@ -1884,12 +1900,39 @@ def update_listener():
 # ============================================================================
 
 def spawn_egg_far_from_player():
-    """Place a new egg at a random position roughly EGG_SPAWN_MIN..MAX away."""
-    angle = random.uniform(0, 2 * math.pi)
-    dist = random.uniform(EGG_SPAWN_MIN, EGG_SPAWN_MAX)
+    """A new egg EGG_SPAWN_MIN..MAX from a random found basket, at least
+    EGG_MIN_SEPARATION from the other eggs and EGG_MIN_FROM_PLAYER from you.
+
+    Unlike a basket, an egg can't just wait for the next frame if there's no
+    room: one is always owed the moment you pick one up. So if no try clears
+    the spacing, it takes the try that was furthest from its nearest egg.
+    """
+    anchors = [(b['x'], b['y']) for b in baskets if b['discovered']] or [(0.0, 0.0)]
+    best, best_gap = None, -1.0
+    for _attempt in range(EGG_PLACE_ATTEMPTS):
+        ax, ay = random.choice(anchors)
+        angle = random.uniform(0, 2 * math.pi)
+        dist = random.uniform(EGG_SPAWN_MIN, EGG_SPAWN_MAX)
+        x = ax + math.cos(angle) * dist
+        y = ay + math.sin(angle) * dist
+        if math.hypot(x - player['x'], y - player['y']) < EGG_MIN_FROM_PLAYER:
+            continue
+        gap = min((math.hypot(e['x'] - x, e['y'] - y) for e in eggs),
+                  default=float('inf'))
+        if gap > best_gap:
+            best, best_gap = (x, y), gap
+        if gap >= EGG_MIN_SEPARATION:
+            break
+    if best is None:
+        # Every try landed at your feet. Put it on the far side of a basket,
+        # which is always at least EGG_SPAWN_MAX from you.
+        ax, ay = random.choice(anchors)
+        away = math.atan2(ay - player['y'], ax - player['x'])
+        best = (ax + math.cos(away) * EGG_SPAWN_MAX, ay + math.sin(away) * EGG_SPAWN_MAX)
+    x, y = best
     return {
-        'x': player['x'] + math.cos(angle) * dist,
-        'y': player['y'] + math.sin(angle) * dist,
+        'x': x,
+        'y': y,
         'z': 0.0,
         'freq_idx': random.randrange(len(PENTATONIC_FREQS)),
         'hatch_timer': settings['hatch_time'],

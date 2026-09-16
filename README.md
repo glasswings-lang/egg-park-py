@@ -144,13 +144,14 @@ python tests/test_scan_guide.py     # the scan guide and B, inside the real game
 python tests/test_movement.py       # running, and footsteps that don't hiss
 python tests/test_play_log.py       # the play log records finds and capacity
 python tests/test_park_save.py      # the park survives closing the game
+python tests/test_egg_spread.py     # eggs spread around your baskets, no drift
 ```
 
 Plain Python, no pytest. They read `main.py` as text rather than importing
 it, because importing it opens a window.
 
-`test_scan_guide.py`, `test_movement.py`, `test_play_log.py` and
-`test_park_save.py` are the exception: they run the
+The tests that start with `test_scan_guide.py` in the list above are the
+exception: they run the
 game for real, through `tests/_game_harness.py`. That first
 moves onto a hidden Windows desktop with no screen, keyboard or speakers
 attached, with speech off, so it can't take focus from a screen reader or
