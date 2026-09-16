@@ -18,9 +18,12 @@ Controls (game):
   S / Down arrow  — walk back
   A               — strafe left
   D               — strafe right
+  Shift (hold)    — run
   Q / Left arrow  — turn left
   E / Right arrow — turn right
-  Space           — scan (reveals nearby eggs + baskets via audible ping)
+  Space           — scan (reveals nearby eggs + baskets via audible ping,
+                    then a guide blip leads to the nearest egg)
+  B               — guide to the nearest basket with room, found or not
   F               — deposit held eggs at the basket you're standing on
   P               — speak status (heading, distances, counts, capacities)
   R               — reload sample bank (re-scan public/audio/samples)
@@ -67,8 +70,57 @@ except Exception as exc:
     _speech = None
 
 
+# ============================================================================
+# Play log
+# ============================================================================
+#
+# play-log.txt, next to main.py: everything the game said aloud, and the
+# numbers behind it at each moment that matters (finds, pickups, refusals,
+# deposits, new parks). The previous session's log is kept as
+# play-log-previous.txt.
+#
+# It exists so a bug noticed while PLAYING can be tracked down without the
+# player having to catch it by ear, in a busy park, and report it exactly.
+# Play normally; the log is read afterwards. Timestamps are seconds since the
+# game opened.
+
+# Tests set EGG_PARK_PLAY_LOG so running them never rotates away a real
+# session's log before it has been read.
+PLAY_LOG_FILE = (os.environ.get('EGG_PARK_PLAY_LOG')
+                 or os.path.join(_script_dir, 'play-log.txt'))
+_play_log = None
+_play_log_start = time.monotonic()
+
+
+def _open_play_log():
+    global _play_log
+    try:
+        previous = PLAY_LOG_FILE.replace('.txt', '-previous.txt')
+        if os.path.isfile(PLAY_LOG_FILE):
+            os.replace(PLAY_LOG_FILE, previous)
+        _play_log = open(PLAY_LOG_FILE, 'w', encoding='utf-8', buffering=1)
+        _play_log.write(f'Egg Park play log, {time.strftime("%Y-%m-%d %H:%M:%S")}\n')
+    except Exception as exc:
+        print(f'[play log] could not open: {exc}')
+        _play_log = None
+
+
+def log_event(text):
+    """One line in the play log. Never raises: a log must not break the game."""
+    if _play_log is None:
+        return
+    try:
+        _play_log.write(f'{time.monotonic() - _play_log_start:9.2f}  {text}\n')
+    except Exception:
+        pass
+
+
+_open_play_log()
+
+
 def say(text):
     """Speak a line via the user's screen reader."""
+    log_event(f'said: {text}')
     if _speech:
         _speech.speak(text)
 
@@ -164,6 +216,12 @@ BIRD_WANDER_SPEED = 0.4
 # = ~2 steps/sec = ~120 BPM (natural walking cadence). Slower walk_speed
 # spaces them out; faster compresses them toward a jog/run rate.
 STEP_DISTANCE = 1.0
+
+# Running: hold Shift. A longer stride, not just the same step faster —
+# 5 m/s at a one-metre stride is five steps a second, which is a drumroll,
+# not a run. At 1.8 m it's under three a second, and still clearly quicker.
+RUN_SPEED = 5.0
+RUN_STEP_DISTANCE = 1.8
 
 # Egg warning — when a held or basketed egg's hatch_timer drops below
 # WARNING_WINDOW, the warning sound fires once per WARNING_INTERVAL until
@@ -269,6 +327,7 @@ _VOLUME_CATEGORIES = [
     ('vol_basket_chime',     'Volume: basket chimes',     1.0),
     ('vol_scan_egg_ping',    'Volume: scan egg pings',    1.0),
     ('vol_scan_basket_ping', 'Volume: scan basket pings', 1.0),
+    ('vol_scan_guide',       'Volume: scan guide',        1.0),
     ('vol_bird_call',        'Volume: bird calls',        1.0),
     ('vol_egg_collect',      'Volume: egg collect',       1.0),
     ('vol_refuse',           'Volume: refuse',            1.0),
@@ -299,6 +358,9 @@ SETTINGS_MENU = [
 ] + [
     {'key': 'walk_speed', 'label': 'Walk speed', 'kind': 'range',
      'default': WALK_SPEED, 'min': 0.5, 'max': 5.0, 'step': 0.5,
+     'format': lambda v: f'{v:.1f} meters per second'},
+    {'key': 'run_speed', 'label': 'Run speed, holding Shift', 'kind': 'range',
+     'default': RUN_SPEED, 'min': 1.0, 'max': 12.0, 'step': 0.5,
      'format': lambda v: f'{v:.1f} meters per second'},
     {'key': 'turn_speed', 'label': 'Turn speed', 'kind': 'range',
      'default': TURN_SPEED, 'min': math.pi / 8, 'max': math.pi, 'step': math.pi / 8,
@@ -491,20 +553,26 @@ def main_menu_items():
     items = []
     if _game_started:
         items.append(('Back to the park', resume_game))
-        items.append(('Start a new park', restart_game))
+        items.append(('Start a new park', confirm_new_park))
+    elif os.path.isfile(PARK_SAVE_FILE):
+        items.append(('Continue your park', continue_saved_park))
+        items.append(('Start a new park', confirm_new_park))
     else:
         items.append(('Walk in the park', start_game))
     items.append(('Settings', open_settings))
     items.append(('Sound test', open_sound_test))
     items.append(('Controls', speak_controls))
-    items.append(('Quit', pyglet.app.exit))
+    items.append(('Quit', quit_game))
     return items
 
 
 def open_main_menu(announce='Main menu.'):
-    global _in_main_menu, _main_menu_focus
+    global _in_main_menu, _main_menu_focus, _new_park_armed
+    if _game_started:
+        save_park('menu opened')
     _in_main_menu = True
     _main_menu_focus = 0
+    _new_park_armed = False
     fire_menu_open()
     say(f'{announce} Up and down to choose, Enter to pick.')
     _speak_focused_menu_item()
@@ -517,7 +585,8 @@ def _speak_focused_menu_item():
 
 
 def main_menu_focus_move(direction):
-    global _main_menu_focus
+    global _main_menu_focus, _new_park_armed
+    _new_park_armed = False   # moving away cancels a half-confirmed new park
     _main_menu_focus = (_main_menu_focus + direction) % len(main_menu_items())
     _speak_focused_menu_item()
 
@@ -540,7 +609,10 @@ def start_game():
     _in_main_menu = False
     _game_started = True
     fire_menu_close()
+    reset_world()
     initial_spawn()
+    log_counts('park started')
+    save_park('new park')
     update_listener()  # positional audio correct before the first tick
     say('The park is yours.')
     _speak_world_intro()
@@ -566,6 +638,7 @@ def restart_game():
     fire_menu_close()
     reset_world()
     initial_spawn()
+    save_park('new park')
     update_listener()
     if lost:
         say(f'New park. The previous {lost} '
@@ -591,6 +664,29 @@ def player_carry_cap():
 def basket_cap():
     """Each basket holds N eggs where N = baskets discovered (min 1)."""
     return max(1, discovered_count())
+
+
+def log_counts(event):
+    """A play-log line with every number capacity depends on, as it is now."""
+    log_event(
+        f'{event} | found {discovered_count()} | carry {len(held)} of '
+        f'{player_carry_cap()} | basket cap {basket_cap()} | '
+        f'baskets in world {len(baskets)} | eggs in world {len(eggs)} | '
+        f'at ({player["x"]:.1f}, {player["y"]:.1f})')
+
+
+# Watchdog for the play log. Finds can only go up within a park, so if either
+# of these ever drops without a new park, something is wrong and the log
+# says exactly when.
+_last_seen_counts = {'found': 0, 'carry': 0}
+
+
+def watch_counts():
+    found, carry = discovered_count(), player_carry_cap()
+    if found < _last_seen_counts['found'] or carry < _last_seen_counts['carry']:
+        log_counts(f'UNEXPECTED DROP (was found {_last_seen_counts["found"]}, '
+                   f'carry cap {_last_seen_counts["carry"]})')
+    _last_seen_counts.update(found=found, carry=carry)
 
 
 # ============================================================================
@@ -740,7 +836,42 @@ _wild_bird_flyoff_source = _noise_burst(WILD_BIRD_DISPERSAL,
 
 # Footstep — short noise burst as the synth placeholder. Quiet by design;
 # it fires every meter and shouldn't fatigue. Real samples will replace it.
-_footstep_source = _noise_burst(0.12, attack=0.005, decay=0.05, release=0.06)
+#
+# LOW-PASSED AT 5 kHz. Raw white noise put most of its energy up top, and a
+# step every half second of that came across as being hissed at, constantly.
+# Everything above the cutoff is what made it a hiss rather than a step.
+FOOTSTEP_LOWPASS_HZ = 5000.0
+
+
+def _lowpassed_noise_generator(cutoff, sample_rate):
+    """White noise through a 2-pole (12 dB per octave) low-pass filter."""
+    w = 2.0 * math.pi * cutoff / sample_rate
+    alpha = math.sin(w) / (2.0 * 0.7071)
+    cos_w = math.cos(w)
+    a0 = 1.0 + alpha
+    b0 = b2 = (1.0 - cos_w) / 2.0 / a0
+    b1 = (1.0 - cos_w) / a0
+    a1 = -2.0 * cos_w / a0
+    a2 = (1.0 - alpha) / a0
+    x1 = x2 = y1 = y2 = 0.0
+    while True:
+        x = random.uniform(-1.0, 1.0)
+        y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
+        x2, x1, y2, y1 = x1, x, y1, y
+        yield max(-1.0, min(1.0, y))
+
+
+def _lowpassed_noise_burst(duration, cutoff, attack, decay, release):
+    return pyglet.media.StaticSource(synthesis.SynthesisSource(
+        _lowpassed_noise_generator(cutoff, 44100), duration, 44100,
+        envelope=synthesis.ADSREnvelope(
+            attack=attack, decay=decay, release=release, sustain_amplitude=0.0,
+        ),
+    ))
+
+
+_footstep_source = _lowpassed_noise_burst(
+    0.12, FOOTSTEP_LOWPASS_HZ, attack=0.005, decay=0.05, release=0.06)
 
 # Standing on a basket. Longer and softer than open ground — a shorter,
 # duller burst reads as a step onto something that gives, rather than onto
@@ -748,7 +879,8 @@ _footstep_source = _noise_burst(0.12, attack=0.005, decay=0.05, release=0.06)
 # the chime is loudest nearby but never says "here", and standing exactly
 # on the deposit spot is the one thing you actually need to know before
 # pressing F.
-_footstep_basket_source = _noise_burst(0.18, attack=0.01, decay=0.09, release=0.08)
+_footstep_basket_source = _lowpassed_noise_burst(
+    0.18, FOOTSTEP_LOWPASS_HZ, attack=0.01, decay=0.09, release=0.08)
 
 # Egg warning — short distressed-coo placeholder (sine in mid-octave).
 # Egg warning — the only alarm in the game. It means you are about to lose
@@ -775,6 +907,31 @@ EGG_WARNING_GAP = 0.11  # seconds between the two tones
 
 # Scan start — quick chime marking the moment of pressing Space.
 _scan_start_source = _triangle(659.25, 0.18, attack=0.01, release=0.04)         # E5
+
+# Scan guide — the blip that leads you to what a scan found. Repeats from the
+# target's direction; see tick_scan_guide for what changes it.
+#
+# E5 is shared with scan-start and sits in the bird octave. What keeps it
+# apart is its VOICE: a bright pluck, a sine with a little second and third
+# harmonic on top, that snaps on and dies away fast. Triangles this high sound
+# almost like pure sines, so a plain sine here read as one more bird. That
+# was tried, and it did. This recipe is the one heard and approved in the
+# preview clips; keep the harmonics and the fast decay if you retune it.
+def _scan_guide_generator(frequency, sample_rate, duration):
+    step = 2.0 * math.pi * frequency / sample_rate
+    attack, decay = 0.006, 0.035
+    for i in range(int(duration * sample_rate)):
+        t = i / sample_rate
+        env = min(t / attack, 1.0) * math.exp(-t / decay)
+        a = i * step
+        tone = math.sin(a) + 0.25 * math.sin(2 * a) + 0.08 * math.sin(3 * a)
+        yield env * tone / 1.33   # 1.33 = the three amplitudes summed: no clipping
+    while True:
+        yield 0.0
+
+
+_scan_guide_source = pyglet.media.StaticSource(synthesis.SynthesisSource(
+    _scan_guide_generator(659.25, 44100, 0.11), 0.11, 44100))                 # E5
 
 # Bird ambient — short noise burst, brighter than a footstep.
 _bird_ambient_source = _noise_burst(0.18, attack=0.02, decay=0.08, release=0.06)
@@ -871,7 +1028,7 @@ os.makedirs(SAMPLES_DIR, exist_ok=True)
 
 _SAMPLE_CATEGORIES = (
     'egg-call', 'basket-chime', 'basket-chime-found',
-    'scan-egg-ping', 'scan-basket-ping', 'bird-call',
+    'scan-egg-ping', 'scan-basket-ping', 'scan-guide', 'bird-call',
     'egg-collect', 'refuse', 'basket-discover', 'basket-deposit',
     'basket-full', 'hatch-in-basket', 'wild-bird-flyoff',
     'footstep', 'footstep-basket',
@@ -1224,9 +1381,10 @@ _listener_locked = set()
 
 
 def _play(source, *, position=None, volume=1.0, category=None,
-          min_distance=None, max_distance=None):
+          min_distance=None, max_distance=None, pitch=1.0):
     p = pyglet.media.Player()
     p.queue(source)
+    p.pitch = pitch
     # Per-category volume multiplies on top of master volume. Category names
     # ('egg-call', etc.) map to setting keys by replacing '-' with '_' and
     # prefixing 'vol_'. Missing keys default to 1.0, so passing an unknown
@@ -1343,6 +1501,13 @@ def fire_scan_basket_ping(basket):
     src = pick_source('scan-basket-ping', fallback=_scan_basket_ping_sources[basket['freq_idx']])
     _play(src, position=(basket['x'], basket['y'], basket['z']), volume=0.7,
           category='scan-basket-ping')
+
+
+def fire_scan_guide(position, *, volume, pitch):
+    """One blip of the scan guide. `position` is already placed a short way
+    off in the target's direction, NOT at the target — see tick_scan_guide."""
+    _play(pick_source('scan-guide', fallback=_scan_guide_source),
+          position=position, volume=volume, pitch=pitch, category='scan-guide')
 
 
 def fire_hatch_in_basket(basket):
@@ -1489,6 +1654,10 @@ SOUND_CATALOGUE = [
     ('scan-basket-ping', 'Scan ping, basket',
      'One basket answering a scan.',
      lambda: _scan_basket_ping_sources[0]),
+    ('scan-guide', 'Scan guide',
+     'Leads you to what a scan found. Faster and louder as you get closer. '
+     'Steady pitch when you face it, low and wobbling when you do not.',
+     lambda: _scan_guide_source),
     ('boot', 'Startup',
      'Plays once when the game opens.',
      lambda: _boot_source),
@@ -1746,6 +1915,10 @@ def reset_world():
     baskets.clear()
     baskets.extend(dict(b, eggs=[]) for b in INITIAL_BASKETS)
     player.update({'x': 0.0, 'y': 0.0, 'z': 0.0, 'yaw': 0.0})
+    _last_seen_counts.update(found=0, carry=0)
+    log_counts('world reset for a new park')
+    # A guide left over would lead toward a basket from the old park.
+    stop_scan_guide()
 
 
 def initial_spawn():
@@ -1779,10 +1952,18 @@ def try_collect_eggs():
         dx = egg['x'] - player['x']
         dy = egg['y'] - player['y']
         if math.hypot(dx, dy) > COLLECT_RADIUS:
+            # Stepped away: the next time you reach it, it may tell you again.
+            egg.pop('refused', None)
             continue
         if len(held) >= player_carry_cap():
-            fire_refuse_sound()
-            say(f'Hands full. {len(held)} eggs held.')
+            # Once per visit. This runs every frame, and it used to refuse
+            # every frame: a play log caught 465 "Hands full" sounds and
+            # spoken lines in eight seconds of standing on one egg.
+            if not egg.get('refused'):
+                egg['refused'] = True
+                log_counts('egg refused, hands full')
+                fire_refuse_sound()
+                say(f'Hands full. {len(held)} eggs held.')
             # Don't dequeue — egg stays so the player can come back after
             # depositing.
             return
@@ -1800,6 +1981,7 @@ def try_collect_eggs():
         say(f'Egg collected. {len(held)} of {player_carry_cap()} held.')
         eggs.remove(egg)
         eggs.append(spawn_egg_far_from_player())
+        log_counts('egg collected')
         return
 
 
@@ -1832,6 +2014,7 @@ def forget_distant_baskets():
             continue
         if math.hypot(b['x'] - player['x'], b['y'] - player['y']) > BASKET_FORGET_DISTANCE:
             baskets.remove(b)
+            log_counts('unfound basket forgotten, far behind')
 
 
 def maybe_spawn_basket():
@@ -1877,6 +2060,7 @@ def try_discover_basket():
         dy = b['y'] - player['y']
         if math.hypot(dx, dy) <= BASKET_DISCOVER_RADIUS:
             b['discovered'] = True
+            log_counts('basket found')
             fire_basket_discover(b)
             n = discovered_count()
             # No denominator any more. The total grows as you walk, so
@@ -1916,6 +2100,7 @@ def try_deposit():
     for _ in range(n):
         on['eggs'].append(held.pop(0))
     fire_deposit_sound(on)
+    log_counts(f'deposited {n}, basket now {len(on["eggs"])}')
     if n < len(held) + n:
         say(f'Deposited {n}. Basket {len(on["eggs"])} of {cap}. {len(held)} still held.')
     else:
@@ -1948,12 +2133,23 @@ def try_scan():
             items.append(('basket', d, b))
 
     if not items:
+        stop_scan_guide()
         fire_fumble()
         say('Nothing in range.')
         return
 
     items.sort(key=lambda t: t[1])
     say(f'Scanning. {len(items)} items in range.')
+
+    # Lead to the nearest egg. Only eggs: baskets have their own scan (B),
+    # because "take me to an egg" and "take me somewhere to put this egg" are
+    # different wishes, and a guide that picks between them for you is one
+    # you can't predict.
+    nearest_egg = next((item for kind, _d, item in items if kind == 'egg'), None)
+    if nearest_egg is not None:
+        start_scan_guide('egg', nearest_egg)
+    else:
+        stop_scan_guide()
 
     # Schedule each ping at a delay proportional to its distance, so
     # close items ping immediately and far items ping later in the sweep.
@@ -1964,6 +2160,135 @@ def try_scan():
             pyglet.clock.schedule_once(lambda dt, e=item: fire_scan_egg_ping(e), delay)
         else:
             pyglet.clock.schedule_once(lambda dt, b=item: fire_scan_basket_ping(b), delay)
+
+
+def basket_has_room(basket):
+    """Unfound baskets are empty, so they always have room — and leading you
+    to one doubles as finding it."""
+    return not basket['discovered'] or len(basket['eggs']) < basket_cap()
+
+
+def try_scan_baskets():
+    """Bound to B. Lead to the nearest basket with room, found or not."""
+    fire_scan_start()
+    best, best_d = None, float('inf')
+    for b in baskets:
+        if not basket_has_room(b):
+            continue
+        d = math.hypot(b['x'] - player['x'], b['y'] - player['y'])
+        if d <= SCAN_RANGE and d < best_d:
+            best, best_d = b, d
+    if best is None:
+        stop_scan_guide()
+        fire_fumble()
+        say('No basket with room in range.')
+        return
+    fire_scan_basket_ping(best)
+    start_scan_guide('basket', best)
+    found = '' if best['discovered'] else ' Not found yet.'
+    say(f'Basket with room, {int(round(best_d))} metres.{found}')
+
+
+# ============================================================================
+# Scan guide
+# ============================================================================
+#
+# After a scan, a short blip repeats from the direction of what it found and
+# leads you there.
+#
+# The idea comes from the scan guide in Periphery Synthetic by Shift Backtick
+# (shiftbacktick.io) — a pulsing tone that tells you where something is by
+# how it changes as you move and turn. None of its code or sound is used;
+# that game's code is all rights reserved, and this is our own design, tuned
+# by ear here.
+#
+# EACH QUALITY OF THE SOUND ANSWERS ONE QUESTION, AND ONLY ONE:
+#   how far?     -> how fast it blips, and how loud
+#   which way?   -> pitch: steady when you face it, sagging and wobbling
+#                   blip-to-blip as it moves behind you
+# The first version let facing speed it up too, and walking toward something,
+# walking past it and turning on the spot all came out as "faster blips" and
+# blurred together. Keep them separate.
+#
+# The blip plays a short way off in the target's DIRECTION, not at the
+# target itself. OpenAL would otherwise fade it by distance on top of our own
+# loudness curve, and a far target would be silent exactly when you most need
+# to hear which way it is.
+
+GUIDE_NEAR_RANGE = 40.0       # closer than this, it starts speeding up
+GUIDE_NEAR_CURVE = 0.8        # <1 makes the change come on earlier
+GUIDE_SLOWEST = 1.0           # seconds between blips, far away
+GUIDE_FASTEST = 0.15          # seconds between blips, on arrival
+GUIDE_QUIETEST = 0.15         # loudness far away, as a share of the loudest
+GUIDE_VOLUME = 0.7            # loudest, before the volume slider
+GUIDE_WOBBLE_CENTS = 180      # blip-to-blip wobble, fully behind you
+GUIDE_SAG_CENTS = -250        # how far pitch sinks, fully behind you
+GUIDE_VOICE_DISTANCE = 1.5    # metres out from you that the blip is placed
+GUIDE_GIVE_UP = SCAN_RANGE * 1.25  # walked this far away: stop guiding
+
+_scan_guide = None   # {'kind', 'target', 'next_at', 'count'} or None
+
+
+def start_scan_guide(kind, target):
+    global _scan_guide
+    _scan_guide = {'kind': kind, 'target': target, 'next_at': now(), 'count': 0}
+
+
+def stop_scan_guide():
+    global _scan_guide
+    _scan_guide = None
+
+
+def _scan_guide_still_wanted(g, dist):
+    if dist > GUIDE_GIVE_UP:
+        return False
+    if g['kind'] == 'egg':
+        # Collected, or hatched on the ground: it's no longer in the world.
+        return g['target'] in eggs and dist > COLLECT_RADIUS
+    target = g['target']
+    return (target in baskets and basket_has_room(target)
+            and dist > BASKET_DEPOSIT_RADIUS)
+
+
+def scan_guide_blip(dist, angle, count):
+    """(seconds until next blip, volume, pitch) for one blip.
+
+    `angle` is the target's bearing relative to where you face, in radians:
+    0 dead ahead, +/-pi straight behind. Kept free of game state so it can be
+    tested directly.
+    """
+    near = 1.0 - min(1.0, dist / GUIDE_NEAR_RANGE) ** GUIDE_NEAR_CURVE
+    interval = GUIDE_SLOWEST + (GUIDE_FASTEST - GUIDE_SLOWEST) * near
+    volume = GUIDE_VOLUME * (GUIDE_QUIETEST + (1.0 - GUIDE_QUIETEST) * near)
+    away = (1.0 - math.cos(angle)) / 2.0          # 0 facing it, 1 behind
+    wobble = GUIDE_WOBBLE_CENTS * away ** 1.5 * (1 if count % 2 else -1)
+    cents = GUIDE_SAG_CENTS * away + wobble
+    return interval, volume, 2.0 ** (cents / 1200.0)
+
+
+def tick_scan_guide(t):
+    g = _scan_guide
+    if g is None:
+        return
+    target = g['target']
+    dx, dy = target['x'] - player['x'], target['y'] - player['y']
+    dist = math.hypot(dx, dy)
+    if not _scan_guide_still_wanted(g, dist):
+        stop_scan_guide()
+        return
+    if t < g['next_at']:
+        return
+    bearing = math.atan2(dy, dx) - player['yaw']
+    angle = math.atan2(math.sin(bearing), math.cos(bearing))
+    interval, volume, pitch = scan_guide_blip(dist, angle, g['count'])
+    position = (player['x'] + dx / dist * GUIDE_VOICE_DISTANCE,
+                player['y'] + dy / dist * GUIDE_VOICE_DISTANCE,
+                player['z'])
+    fire_scan_guide(position, volume=volume, pitch=pitch)
+    g['count'] += 1
+    # From now, not from the missed deadline: after a pause in the menu the
+    # guide picks up with one blip rather than a burst of catch-up blips.
+    g['next_at'] = t + interval
 
 
 # ============================================================================
@@ -2096,10 +2421,11 @@ window.push_handlers(keys)
 # seconds, and each pair reads as one phrase rather than a list of letters.
 CONTROL_HELP = (
     ('Move', 'W or up arrow forward. S or down arrow back. '
-             'A step left. D step right.'),
+             'A step left. D step right. Hold Shift to run.'),
     ('Turn', 'Q or left arrow turns left. E or right arrow turns right.'),
-    ('Do', 'Space scans for eggs. F deposits at a basket. '
-           'P speaks your status.'),
+    ('Do', 'Space scans for eggs and leads you to the nearest. '
+           'B leads you to the nearest basket with room. '
+           'F deposits at a basket. P speaks your status.'),
     ('Set up', 'O opens settings. Left and right square brackets '
                'lower and raise the volume. R reloads the sample bank.'),
     ('Leave', 'Escape goes back to the main menu, where Quit lives. '
@@ -2204,6 +2530,8 @@ def on_key_press(symbol, modifiers):
         try_deposit()
     elif symbol == key.SPACE:
         try_scan()
+    elif symbol == key.B:
+        try_scan_baskets()
     elif symbol == key.R:
         reload_sample_bank()
     elif symbol == key.O:
@@ -2276,7 +2604,9 @@ def update(dt):
         dx = math.cos(player['yaw']) * move_forward + math.sin(player['yaw']) * move_right
         dy = math.sin(player['yaw']) * move_forward - math.cos(player['yaw']) * move_right
         length = math.hypot(dx, dy)
-        walk_speed = settings['walk_speed']
+        running = keys[key.LSHIFT] or keys[key.RSHIFT]
+        walk_speed = settings['run_speed'] if running else settings['walk_speed']
+        stride = RUN_STEP_DISTANCE if running else STEP_DISTANCE
         player['x'] += (dx / length) * walk_speed * dt
         player['y'] += (dy / length) * walk_speed * dt
 
@@ -2285,8 +2615,8 @@ def update(dt):
         # adjusting walk_speed naturally changes step rate. Toggle-off
         # still ticks the counter so re-enabling mid-walk doesn't burst.
         _dist_since_step += walk_speed * dt
-        if _dist_since_step >= STEP_DISTANCE:
-            _dist_since_step -= STEP_DISTANCE
+        if _dist_since_step >= stride:
+            _dist_since_step -= stride
             if settings['enable_footsteps']:
                 fire_footstep()
     else:
@@ -2306,8 +2636,12 @@ def update(dt):
     # Hatching timers.
     tick_hatching(dt)
     tick_birds(dt)
+    watch_counts()
+    tick_autosave()
 
     t = now()
+
+    tick_scan_guide(t)
 
     # Egg call — round-robin over all eggs in audible range. Each call
     # fires from the nearest egg; the nearest changes as you move so you
@@ -2410,6 +2744,165 @@ def announce_status():
 
 
 # ============================================================================
+# Saving the park
+# ============================================================================
+#
+# park.json, next to main.py. Without it, closing the game threw the whole
+# park away: every basket found, every egg in them, every bird, and your
+# carrying capacity with it. Which looked exactly like "finding baskets
+# doesn't raise capacity", because the next session started from zero.
+#
+# Saved every PARK_AUTOSAVE_INTERVAL seconds while playing, whenever the menu
+# opens, and on quitting (menu or window close). Written to a .tmp first and
+# swapped in, so a crash mid-save leaves the last good save rather than half
+# a file.
+#
+# Timers are saved as time LEFT, not as clock readings: the clock restarts
+# with the game, so an absolute time would be meaningless next session. Time
+# doesn't pass while the game is closed: an egg in your hand is exactly as
+# close to hatching as when you left.
+#
+# Starting a new park over a saved one takes Enter twice, and the old save is
+# kept as park-previous.json. It's hours of collecting, one key from gone.
+
+PARK_SAVE_FILE = (os.environ.get('EGG_PARK_SAVE')
+                  or os.path.join(_script_dir, 'park.json'))
+PARK_PREVIOUS_FILE = PARK_SAVE_FILE.replace('.json', '-previous.json')
+PARK_BROKEN_FILE = PARK_SAVE_FILE.replace('.json', '-unreadable.json')
+PARK_SAVE_VERSION = 1
+PARK_AUTOSAVE_INTERVAL = 30.0
+
+_next_autosave_at = 0.0
+_new_park_armed = False
+
+
+def _park_to_dict():
+    t = time.monotonic()
+    return {
+        'version': PARK_SAVE_VERSION,
+        'player': dict(player),
+        'held': [dict(h) for h in held],
+        'eggs': [dict(e) for e in eggs],
+        'baskets': [dict(b, eggs=[dict(e) for e in b['eggs']]) for b in baskets],
+        'birds': [dict(bird,
+                       next_call_at=bird['next_call_at'] - t,
+                       next_ambient_at=bird['next_ambient_at'] - t)
+                  for bird in birds],
+    }
+
+
+def save_park(reason):
+    """Write the park to disk. Never raises: failing to save must not end a
+    session, but it must not be silent either."""
+    global _next_autosave_at
+    _next_autosave_at = now() + PARK_AUTOSAVE_INTERVAL
+    try:
+        tmp = PARK_SAVE_FILE + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(_park_to_dict(), f, indent=1)
+        os.replace(tmp, PARK_SAVE_FILE)
+        if reason != 'autosave':
+            log_counts(f'park saved ({reason})')
+    except Exception as exc:
+        log_event(f'COULD NOT SAVE PARK ({reason}): {exc}')
+        print(f'[park] could not save: {exc}')
+
+
+def load_park():
+    """Replace the current world with the saved one. True if it worked.
+
+    On a save that can't be read, the world is left alone and the file is
+    moved aside as park-unreadable.json rather than deleted or overwritten,
+    so the next autosave can't destroy something that might be recoverable.
+    """
+    try:
+        with open(PARK_SAVE_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        if data.get('version') != PARK_SAVE_VERSION:
+            raise ValueError(f"save version {data.get('version')!r}")
+        t = time.monotonic()
+        new_player = {k: float(data['player'][k]) for k in ('x', 'y', 'z', 'yaw')}
+        new_held = [dict(h) for h in data['held']]
+        new_eggs = [dict(e) for e in data['eggs']]
+        new_baskets = [dict(b, eggs=[dict(e) for e in b['eggs']])
+                       for b in data['baskets']]
+        new_birds = [dict(bird,
+                          next_call_at=t + max(0.0, bird['next_call_at']),
+                          next_ambient_at=t + max(0.0, bird['next_ambient_at']))
+                     for bird in data['birds']]
+    except Exception as exc:
+        log_event(f'COULD NOT LOAD PARK: {exc}')
+        print(f'[park] could not load: {exc}')
+        try:
+            os.replace(PARK_SAVE_FILE, PARK_BROKEN_FILE)
+        except Exception:
+            pass
+        return False
+    reset_world()
+    player.update(new_player)
+    held.extend(new_held)
+    eggs.extend(new_eggs)
+    baskets.clear()
+    baskets.extend(new_baskets)
+    birds.extend(new_birds)
+    _last_seen_counts.update(found=discovered_count(), carry=player_carry_cap())
+    log_counts('park loaded')
+    return True
+
+
+def continue_saved_park():
+    global _in_main_menu, _game_started
+    if not load_park():
+        say('Your saved park could not be read. It has been kept, renamed '
+            'park unreadable. Starting a new park.')
+        start_game()
+        return
+    _in_main_menu = False
+    _game_started = True
+    fire_menu_close()
+    update_listener()
+    parts = [f'{discovered_count()} baskets found',
+             f'{len(held)} of {player_carry_cap()} eggs held']
+    if birds:
+        parts.append(f'{len(birds)} bird{"s" if len(birds) != 1 else ""}')
+    say('Welcome back. ' + '. '.join(parts) + '.')
+
+
+def confirm_new_park():
+    """Enter once to hear what would be lost, Enter again to do it."""
+    global _new_park_armed
+    has_save = _game_started or os.path.isfile(PARK_SAVE_FILE)
+    if has_save and not _new_park_armed:
+        _new_park_armed = True
+        say('This replaces your park. The old one is kept as a backup. '
+            'Press Enter again to start a new park.')
+        return
+    _new_park_armed = False
+    if os.path.isfile(PARK_SAVE_FILE):
+        try:
+            import shutil
+            shutil.copyfile(PARK_SAVE_FILE, PARK_PREVIOUS_FILE)
+            log_event('old park kept as backup before starting a new one')
+        except Exception as exc:
+            log_event(f'COULD NOT BACK UP OLD PARK: {exc}')
+    if _game_started:
+        restart_game()
+    else:
+        start_game()
+
+
+def quit_game():
+    if _game_started:
+        save_park('quit')
+    pyglet.app.exit()
+
+
+def tick_autosave():
+    if _game_started and now() >= _next_autosave_at:
+        save_park('autosave')
+
+
+# ============================================================================
 # Boot
 # ============================================================================
 
@@ -2434,3 +2927,7 @@ write_sounds_template()
 open_main_menu(announce='Egg Park.')
 
 pyglet.app.run()
+
+# The window's close button ends the loop without passing through quit_game.
+if _game_started:
+    save_park('window closed')

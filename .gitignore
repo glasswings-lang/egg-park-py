@@ -14,6 +14,17 @@ sounds.txt
 # nudged a slider.
 settings.json
 
+# The play log: what the game said and the numbers behind it, rewritten every
+# session so a bug found while playing can be read back afterwards. Personal
+# to one run, like settings.json.
+play-log.txt
+play-log-previous.txt
+
+# Your saved park, its backup, and any save that couldn't be read. Yours.
+park.json
+park-previous.json
+park-unreadable.json
+
 # Half-written files from the atomic-save dance (write .tmp, then replace).
 # One of these on disk means a save was interrupted, not that anything is
 # worth keeping.

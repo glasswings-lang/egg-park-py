@@ -226,6 +226,24 @@ you like; the engine plays them at the right positions.
   - `scan-basket-ping-2.wav`
   - `scan-basket-ping-3.wav`
 
+### `scan-guide` — 1 variant
+- **Trigger**: After Space finds an egg, or B finds a basket with room, this
+  repeats until you arrive, the target is gone or full, or you scan again.
+- **Spatial**: direction only. It plays a short way off toward the target,
+  never at it, so distance doesn't fade it. The game sets its loudness.
+- **Duration**: 0.08–0.15 s. It can repeat six times a second up close, so
+  anything longer smears into a buzz.
+- **Character**: A short, clean pluck with a clear pitch. The game changes
+  the pitch of this recording to say which way the target is (steady when
+  you face it, sinking and wobbling when you don't), so it needs a pitch
+  you can follow. A noisy or unpitched sound loses the whole direction cue.
+  Keep it a different waveform from the triangle chimes and bird calls it
+  shares a register with; the placeholder is a pure sine.
+- **Don't** build in a volume swell or tail: speed and loudness are how it
+  says distance, and a recording with its own shape fights that.
+- **Files** (1):
+  - `scan-guide.wav`
+
 ### `bird-call` — 5 variants
 - **Trigger**: Hatched birds wander the park and call every 8–16 seconds
   from wherever they are. (Triangle one octave up in the placeholder — the
@@ -575,6 +593,7 @@ work outward.
 | basket-chime           | 3     |
 | scan-egg-ping          | 5     |
 | scan-basket-ping       | 3     |
+| scan-guide             | 1     |
 | bird-call              | 5     |
 | egg-collect            | 3     |
 | refuse                 | 1     |
@@ -593,9 +612,9 @@ work outward.
 | menu-open              | 1     |
 | menu-close             | 1     |
 | origin                 | 2     |
-| **Total**              | **54** |
+| **Total**              | **55** |
 
-54 files for a complete sound replacement. Variant counts are
+55 files for a complete sound replacement. Variant counts are
 suggestions — record more if you want a bigger pool to draw from, fewer
 if you're happy with less variety. The engine doesn't care how many.
 

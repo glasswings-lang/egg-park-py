@@ -22,6 +22,15 @@ Soft, under the LGPL, and stays under the LGPL. It's redistributed here
 unmodified and dynamically loaded, so it can be swapped for your own build.
 See `THIRD-PARTY.md` for the details and `LICENSES/` for the texts.
 
+## Thanks
+
+The scan guide — the blip that leads you to what a scan found, speeding up
+as you close in and wobbling as you turn away — was inspired by the scan
+guide in **Periphery Synthetic** by **Shift Backtick**
+(<https://shiftbacktick.io>). Nothing from it is used here: no code and no
+sound. Just the idea that a sound can tell you where something is by the way
+it changes as you move. Go play it.
+
 ## Setup
 
 ```
@@ -108,15 +117,44 @@ you'd go looking when a sound doesn't play.
 
 `sounds.txt` is not committed. It names paths on your machine.
 
+## Saving
+
+Your park saves itself to `park.json` next to `main.py`: every 30 seconds
+while you play, whenever you open the menu, and when you quit or close the
+window. Next time, the menu's first item is **Continue your park**.
+
+Starting a new park over a saved one takes Enter twice, and the old park is
+kept as `park-previous.json`. A save that can't be read is never overwritten;
+it's set aside as `park-unreadable.json` and a fresh park starts.
+
+## Play log
+
+Every session writes `play-log.txt` next to `main.py`: everything the game
+said aloud, and the numbers behind it (baskets found, eggs held out of how
+many, basket capacity) at every find, pickup, refusal and deposit. The one
+before is kept as `play-log-previous.txt`. If something seems wrong while
+playing, keep playing; the log shows exactly when and what.
+
 ## Tests
 
 ```
 python tests/test_soundlist.py      # sounds.txt parsing and the template
 python tests/test_sound_wiring.py   # every sound is registered everywhere
+python tests/test_scan_guide.py     # the scan guide and B, inside the real game
+python tests/test_movement.py       # running, and footsteps that don't hiss
+python tests/test_play_log.py       # the play log records finds and capacity
+python tests/test_park_save.py      # the park survives closing the game
 ```
 
 Plain Python, no pytest. They read `main.py` as text rather than importing
 it, because importing it opens a window.
+
+`test_scan_guide.py`, `test_movement.py`, `test_play_log.py` and
+`test_park_save.py` are the exception: they run the
+game for real, through `tests/_game_harness.py`. That first
+moves onto a hidden Windows desktop with no screen, keyboard or speakers
+attached, with speech off, so it can't take focus from a screen reader or
+make a sound. If it can't get that hidden desktop, it refuses to run.
 
 `test_sound_wiring.py` is the one that matters when changing sounds: adding
 a cue means touching four separate places, and forgetting one fails
@@ -137,9 +175,11 @@ still deciding what you want to do.
 | **S** / Down arrow  | Walk back                                        |
 | **A**               | Strafe left                                      |
 | **D**               | Strafe right                                     |
+| **Shift** (hold)    | Run                                              |
 | **Q** / Left arrow  | Turn left                                        |
 | **E** / Right arrow | Turn right                                       |
 | **Space**           | Scan — reveal nearby eggs and baskets by ping    |
+| **B**               | Guide to the nearest basket with room            |
 | **F**               | Deposit held eggs at the basket you're on        |
 | **P**               | Speak status (heading, distances, counts, caps)  |
 | **R**               | Reload sample bank (re-scan samples folder)      |
