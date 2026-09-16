@@ -19,8 +19,11 @@ def player_carry_cap():
 
 
 def basket_cap():
-    """Each basket holds N eggs where N = baskets discovered (min 1)."""
-    return max(1, discovered_count())
+    """Each basket holds one egg per basket discovered, and never less than
+    you can carry: one trip's worth must always fit in one basket. Today the
+    found count is always the bigger of the two, but carrying is meant to be
+    boosted by chests, and this has to stay true when it is."""
+    return max(1, discovered_count(), player_carry_cap())
 
 
 def log_counts(event):
@@ -59,11 +62,30 @@ def spawn_egg_far_from_player():
     the spacing, it takes the try that was furthest from its nearest egg.
     """
     anchors = [(b['x'], b['y']) for b in state.baskets if b['discovered']] or [(0.0, 0.0)]
+    return _place_egg(anchors, config.EGG_SPAWN_MIN, config.EGG_SPAWN_MAX,
+                      config.EGG_MIN_SEPARATION)
+
+
+def lay_egg_near(home_x, home_y):
+    """An egg laid by a bird: close to its home basket, marked as laid.
+
+    Laid eggs are not replaced when picked up. Only wild eggs are, so the wild
+    supply stays what it was and every extra egg in the park came from a bird.
+    """
+    egg = _place_egg([(home_x, home_y)], config.LAID_EGG_MIN, config.LAID_EGG_MAX,
+                     config.LAID_EGG_MIN_SEPARATION)
+    egg['laid'] = True
+    return egg
+
+
+def _place_egg(anchors, dist_min, dist_max, separation):
+    """An egg dist_min..dist_max from a random anchor, `separation` from the
+    other eggs and EGG_MIN_FROM_PLAYER from you, as far as possible."""
     best, best_gap = None, -1.0
     for _attempt in range(config.EGG_PLACE_ATTEMPTS):
         ax, ay = random.choice(anchors)
         angle = random.uniform(0, 2 * math.pi)
-        dist = random.uniform(config.EGG_SPAWN_MIN, config.EGG_SPAWN_MAX)
+        dist = random.uniform(dist_min, dist_max)
         x = ax + math.cos(angle) * dist
         y = ay + math.sin(angle) * dist
         if math.hypot(x - state.player['x'], y - state.player['y']) < config.EGG_MIN_FROM_PLAYER:
@@ -72,14 +94,14 @@ def spawn_egg_far_from_player():
                   default=float('inf'))
         if gap > best_gap:
             best, best_gap = (x, y), gap
-        if gap >= config.EGG_MIN_SEPARATION:
+        if gap >= separation:
             break
     if best is None:
-        # Every try landed at your feet. Put it on the far side of a basket,
-        # which is always at least EGG_SPAWN_MAX from you.
+        # Every try landed at your feet. Put it on the far side of the anchor
+        # from you, at the furthest distance allowed.
         ax, ay = random.choice(anchors)
         away = math.atan2(ay - state.player['y'], ax - state.player['x'])
-        best = (ax + math.cos(away) * config.EGG_SPAWN_MAX, ay + math.sin(away) * config.EGG_SPAWN_MAX)
+        best = (ax + math.cos(away) * dist_max, ay + math.sin(away) * dist_max)
     x, y = best
     return {
         'x': x,
@@ -174,7 +196,10 @@ def try_collect_eggs():
         sounds.fire_collect_sound()
         speech.say(f'Egg collected. {len(state.held)} of {player_carry_cap()} held.')
         state.eggs.remove(egg)
-        state.eggs.append(spawn_egg_far_from_player())
+        if not egg.get('laid'):
+            # Only wild eggs come back. A laid egg was a bird's gift, not
+            # part of the wild supply, so taking it doesn't summon another.
+            state.eggs.append(spawn_egg_far_from_player())
         log_counts('egg collected')
         return
 

@@ -47,6 +47,7 @@ _VOLUME_CATEGORIES = [
     ('vol_basket_deposit',   'Volume: basket deposit',    1.0),
     ('vol_basket_full',      'Volume: basket full',       1.0),
     ('vol_hatch_in_basket',  'Volume: hatch in basket',   1.0),
+    ('vol_egg_laid',         'Volume: egg laid',          1.0),
     ('vol_wild_bird_flyoff', 'Volume: wild bird flyoff',  1.0),
     ('vol_footstep',         'Volume: footsteps',         1.0),
     ('vol_egg_warning',      'Volume: egg warning',       1.0),
@@ -90,7 +91,10 @@ SETTINGS_MENU = [
     # whether it feels like a pleasant push or a hostile stopwatch is not
     # something the number can tell you.
     {'key': 'hatch_time', 'label': 'Time before an egg hatches', 'kind': 'range',
-     'default': config.HATCH_TIMER_INITIAL, 'min': 15.0, 'max': 180.0, 'step': 15.0,
+     'default': config.HATCH_TIMER_INITIAL, 'min': 5.0, 'max': 180.0, 'step': 5.0,
+     'format': lambda v: f'{v:.0f} seconds'},
+    {'key': 'lay_time', 'label': 'Time before a bird lays', 'kind': 'range',
+     'default': config.LAY_TIME_DEFAULT, 'min': 5.0, 'max': 900.0, 'step': 5.0,
      'format': lambda v: f'{v:.0f} seconds'},
     # Recordings vs synth. Normally a recorded sample wins wherever one
     # exists, which is what you want while playing — but not while WORKING on
@@ -102,6 +106,7 @@ SETTINGS_MENU = [
     {'key': 'enable_pickup',          'label': 'Egg pickup',      'kind': 'bool', 'default': True},
     {'key': 'enable_hand_hatching',   'label': 'Hand hatching',   'kind': 'bool', 'default': True},
     {'key': 'enable_basket_hatching', 'label': 'Basket hatching', 'kind': 'bool', 'default': True},
+    {'key': 'enable_bird_laying',     'label': 'Birds lay eggs',  'kind': 'bool', 'default': True},
     {'key': 'enable_egg_calls',       'label': 'Egg calls',       'kind': 'bool', 'default': True},
     {'key': 'enable_basket_chimes',   'label': 'Basket chimes',   'kind': 'bool', 'default': True},
     {'key': 'enable_bird_calls',      'label': 'Bird calls',      'kind': 'bool', 'default': True},

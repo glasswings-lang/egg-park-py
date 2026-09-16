@@ -59,25 +59,50 @@ def basket_has_room(basket):
     return not basket['discovered'] or len(basket['eggs']) < world.basket_cap()
 
 
-def try_scan_baskets():
-    """Bound to B. Lead to the nearest basket with room, found or not."""
-    sounds.fire_scan_start()
+# Two basket scans, because found and unfound baskets want different things
+# from you and their chimes blur together once there are enough of them:
+#   B  a basket you've FOUND that has room: somewhere to put what you carry
+#   V  a basket you HAVEN'T found yet: exploring, and growing your capacity
+# One key used to do both, picking whichever was nearer, and you couldn't tell
+# which kind it had chosen until it spoke.
+
+def _nearest_basket(wanted):
     best, best_d = None, float('inf')
     for b in state.baskets:
-        if not basket_has_room(b):
+        if not wanted(b):
             continue
         d = math.hypot(b['x'] - state.player['x'], b['y'] - state.player['y'])
         if d <= config.SCAN_RANGE and d < best_d:
             best, best_d = b, d
+    return best, best_d
+
+
+def try_scan_found_baskets():
+    """Bound to B. Lead to the nearest basket you've found that has room."""
+    sounds.fire_scan_start()
+    best, best_d = _nearest_basket(lambda b: b['discovered'] and basket_has_room(b))
     if best is None:
         stop_scan_guide()
         sounds.fire_fumble()
-        speech.say('No basket with room in range.')
+        speech.say('No found basket with room in range.')
         return
     sounds.fire_scan_basket_ping(best)
     start_scan_guide('basket', best)
-    found = '' if best['discovered'] else ' Not found yet.'
-    speech.say(f'Basket with room, {int(round(best_d))} metres.{found}')
+    speech.say(f'Found basket with room, {int(round(best_d))} metres.')
+
+
+def try_scan_unfound_baskets():
+    """Bound to V. Lead to the nearest basket you haven't found yet."""
+    sounds.fire_scan_start()
+    best, best_d = _nearest_basket(lambda b: not b['discovered'])
+    if best is None:
+        stop_scan_guide()
+        sounds.fire_fumble()
+        speech.say('No unfound basket in range.')
+        return
+    sounds.fire_scan_basket_ping(best)
+    start_scan_guide('unfound basket', best)
+    speech.say(f'Unfound basket, {int(round(best_d))} metres.')
 
 
 # ============================================================================
@@ -137,6 +162,9 @@ def _scan_guide_still_wanted(g, dist):
         # Collected, or hatched on the ground: it's no longer in the world.
         return g['target'] in state.eggs and dist > config.COLLECT_RADIUS
     target = g['target']
+    if g['kind'] == 'unfound basket':
+        # Finding it is arriving: its discovery chime takes over from here.
+        return target in state.baskets and not target['discovered']
     return (target in state.baskets and basket_has_room(target)
             and dist > config.BASKET_DEPOSIT_RADIUS)
 

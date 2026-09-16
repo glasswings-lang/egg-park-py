@@ -145,6 +145,7 @@ python tests/test_movement.py       # running, and footsteps that don't hiss
 python tests/test_play_log.py       # the play log records finds and capacity
 python tests/test_park_save.py      # the park survives closing the game
 python tests/test_egg_spread.py     # eggs spread around your baskets, no drift
+python tests/test_birds_lay.py      # birds lay eggs near home
 ```
 
 Plain Python, no pytest. The first two read the game's code as text rather
@@ -180,7 +181,8 @@ still deciding what you want to do.
 | **Q** / Left arrow  | Turn left                                        |
 | **E** / Right arrow | Turn right                                       |
 | **Space**           | Scan — reveal nearby eggs and baskets by ping    |
-| **B**               | Guide to the nearest basket with room            |
+| **B**               | Guide to the nearest found basket with room      |
+| **V**               | Guide to the nearest basket not yet found        |
 | **F**               | Deposit held eggs at the basket you're on        |
 | **P**               | Speak status (heading, distances, counts, caps)  |
 | **R**               | Reload sample bank (re-scan samples folder)      |

@@ -30,7 +30,8 @@ CONTROL_HELP = (
              'A step left. D step right. Hold Shift to run.'),
     ('Turn', 'Q or left arrow turns left. E or right arrow turns right.'),
     ('Do', 'Space scans for eggs and leads you to the nearest. '
-           'B leads you to the nearest basket with room. '
+           'B leads you to the nearest found basket with room. '
+           'V leads you to the nearest basket you have not found yet. '
            'F deposits at a basket. P speaks your status.'),
     ('Set up', 'O opens settings. Left and right square brackets '
                'lower and raise the volume. R reloads the sample bank.'),
@@ -137,7 +138,9 @@ def on_key_press(symbol, modifiers):
     elif symbol == key.SPACE:
         scan.try_scan()
     elif symbol == key.B:
-        scan.try_scan_baskets()
+        scan.try_scan_found_baskets()
+    elif symbol == key.V:
+        scan.try_scan_unfound_baskets()
     elif symbol == key.R:
         sounds.reload_sample_bank()
     elif symbol == key.O:
@@ -242,6 +245,7 @@ def update(dt):
     # Hatching timers.
     flock.tick_hatching(dt)
     flock.tick_birds(dt)
+    flock.tick_laying(dt)
     world.watch_counts()
     saving.tick_autosave()
 

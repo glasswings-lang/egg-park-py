@@ -245,13 +245,17 @@ you like; the engine plays them at the right positions.
   - `scan-guide.wav`
 
 ### `bird-call` — 5 variants
-- **Trigger**: Hatched birds wander the park and call every 8–16 seconds
-  from wherever they are. (Triangle one octave up in the placeholder — the
-  birds are bright and overhead, not earthbound.)
+- **Trigger**: Hatched birds wander the park and call every 8–16 seconds.
+  Only birds within 80 m can be heard, fading out over the last 20 m.
 - **Spatial**: yes.
-- **Duration**: 0.3–0.8 s.
-- **Character**: Lively bird-call shapes. More vocal-active than egg-call;
-  birds are *announcing themselves*, not just *being there*.
+- **Duration**: 0.1–0.3 s.
+- **Character**: CHIRPS: pitch that moves, fast and upward. This is what
+  tells a bird from an egg, and it matters more than pitch height: the
+  placeholder used to be the egg call an octave up in the same voice, and
+  the ear fused the two, so eggs could only be found by scanning. Eggs hold
+  a steady note; a bird recording must not. Keep it above the eggs
+  (440 Hz and up). The placeholders are a single upward chirp and a double
+  tweet; each bird keeps one for life.
 - **Why 5 variants**: as you accumulate birds, several are calling at
   staggered intervals — the ear locks onto repeats fast with overlapping
   sources.
@@ -345,6 +349,17 @@ you like; the engine plays them at the right positions.
   - `hatch-in-basket-1.wav`
   - `hatch-in-basket-2.wav`
   - `hatch-in-basket-3.wav`
+
+### `egg-laid` — 1 variant
+- **Trigger**: One of your birds lays an egg, a short way from its home
+  basket.
+- **Spatial**: yes, at the new egg.
+- **Duration**: 0.2–0.5 s.
+- **Character**: A soft, rounded plop or settle. It says "an egg is here
+  now", so it belongs in the egg register (220–392 Hz), and it should
+  sound different from the egg call itself, which that egg starts making.
+- **Files** (1):
+  - `egg-laid.wav`
 
 ### `wild-bird-flyoff` — 3 variants
 - **Trigger**: A held egg's hatch timer reaches 0 before you reach a
@@ -601,6 +616,7 @@ work outward.
 | basket-deposit         | 3     |
 | basket-full            | 1     |
 | hatch-in-basket        | 3     |
+| egg-laid               | 1     |
 | wild-bird-flyoff       | 3     |
 | footstep               | 5     |
 | egg-warning            | 2     |
@@ -612,9 +628,9 @@ work outward.
 | menu-open              | 1     |
 | menu-close             | 1     |
 | origin                 | 2     |
-| **Total**              | **55** |
+| **Total**              | **56** |
 
-55 files for a complete sound replacement. Variant counts are
+56 files for a complete sound replacement. Variant counts are
 suggestions — record more if you want a bigger pool to draw from, fewer
 if you're happy with less variety. The engine doesn't care how many.
 

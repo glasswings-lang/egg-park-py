@@ -113,6 +113,10 @@ def run_game(checks):
 
     def fake_run(*a, **k):
         G = Game(main_globals)
+        # Changing a setting saves it. Settings were already loaded from the
+        # real file at boot; from here on, saves go to the scratch folder so a
+        # test that nudges a slider can't rewrite someone's settings.json.
+        G['SETTINGS_FILE'] = os.path.join(TEST_DIR, 'settings.json')
         try:
             checks(G)
         finally:

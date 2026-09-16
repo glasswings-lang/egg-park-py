@@ -28,7 +28,8 @@ Controls (game):
   E / Right arrow — turn right
   Space           — scan (reveals nearby eggs + baskets via audible ping,
                     then a guide blip leads to the nearest egg)
-  B               — guide to the nearest basket with room, found or not
+  B               — guide to the nearest found basket with room
+  V               — guide to the nearest basket you haven't found yet
   F               — deposit held eggs at the basket you're standing on
   P               — speak status (heading, distances, counts, capacities)
   R               — reload sample bank (re-scan public/audio/samples)

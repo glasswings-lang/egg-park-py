@@ -115,10 +115,70 @@ _scan_egg_ping_sources = [_triangle(f, 0.3, attack=0.02, release=0.02) for f in 
 _scan_basket_ping_sources = [_sine(f * config.BASKET_OCTAVE, 0.6, attack=0.04, release=0.06)
                              for f in config.PENTATONIC_FREQS]
 
-# Per-note bird ambient calls. Brighter triangle one octave up so birds
-# read as overhead/airy compared to ground-level eggs.
-_bird_call_sources = [_triangle(f * config.BIRD_OCTAVE, 0.4, attack=0.03, release=0.03)
-                      for f in config.PENTATONIC_FREQS]
+# Bird calls: CHIRPS, not notes.
+#
+# They used to be the egg call's own triangle, one octave up on the same five
+# notes. An octave is the interval the ear fuses most readily, so a bird read
+# as a brighter egg and eggs could only be found by scanning. Moving birds by
+# whole octaves can't fix that; giving them a different SHAPE does. Eggs hold
+# a steady note. Birds slide upward, fast, and never dip below their own note
+# (the bird octave, 440-784 Hz), so they stay clear of the eggs' 220-392.
+#
+# Two calls, and each bird keeps one for life (see flock.hatch_into_your_bird):
+#   chirp  - one quick upward slide, 120 ms, rising half an octave-ish (x1.5)
+#   tweet  - two shorter slides, 60 ms and 70 ms, 40 ms apart
+# Both are the exact recipes from preview clips that were listened to and
+# approved; tests/test_birds_lay.py compares these sources to that recipe
+# sample by sample. Don't let them drift toward a steady note.
+BIRD_CHIRP_ATTACK = 0.004
+
+
+def _bird_glide(f0, f1, duration, sample_rate=44100):
+    """Samples of one upward glide: exponential sweep f0 -> f1, a sine with a
+    little second harmonic, snapping on and dying away within the glide."""
+    n = int(duration * sample_rate)
+    ratio = f1 / f0
+    phase = 0.0
+    for i in range(n):
+        t = i / sample_rate
+        phase += 2.0 * math.pi * f0 * ratio ** (t / duration) / sample_rate
+        env = min(t / BIRD_CHIRP_ATTACK, 1.0) * math.exp(-t / (duration * 0.35))
+        yield env * (math.sin(phase) + 0.2 * math.sin(2.0 * phase)) / 1.2
+
+
+def _bird_call_generator(parts, sample_rate=44100):
+    """`parts`: glides as (f0, f1, seconds), or silences as (None, None, seconds)."""
+    for f0, f1, seconds in parts:
+        if f0 is None:
+            for _ in range(int(seconds * sample_rate)):
+                yield 0.0
+        else:
+            yield from _bird_glide(f0, f1, seconds, sample_rate)
+    while True:
+        yield 0.0
+
+
+def _bird_call_source(parts):
+    duration = sum(p[2] for p in parts)
+    return pyglet.media.StaticSource(synthesis.SynthesisSource(
+        _bird_call_generator(parts), duration, 44100))
+
+
+def bird_chirp_parts(note):
+    return [(note, note * 1.5, 0.12)]
+
+
+def bird_tweet_parts(note):
+    return [(note, note * 1.25, 0.06), (None, None, 0.04), (note * 1.1, note * 1.45, 0.07)]
+
+
+BIRD_CALL_STYLES = ('chirp', 'tweet')
+_bird_call_sources = {
+    'chirp': [_bird_call_source(bird_chirp_parts(f * config.BIRD_OCTAVE))
+              for f in config.PENTATONIC_FREQS],
+    'tweet': [_bird_call_source(bird_tweet_parts(f * config.BIRD_OCTAVE))
+              for f in config.PENTATONIC_FREQS],
+}
 
 # Non-pitched one-shots.
 _collect_source = _triangle(440.0, 0.35, attack=0.02, release=0.03)         # A4
@@ -152,6 +212,10 @@ _deposit_source = _triangle(110.0, 0.4, attack=0.02, release=0.02)          # A2
 # the menu cues and the egg alarm, and this is neither.
 _basket_full_source = _triangle(138.59, 0.30, attack=0.03, release=0.14)  # Db3     # D3 — denied
 _hatch_in_basket_source = _sine(523.25, 1.6, attack=0.30, release=0.30)     # C5 — bright bloom
+# A bird laid an egg. Short and soft, in the egg register (G4) because it
+# marks where a new egg now lies; a sine so it isn't mistaken for the
+# triangle egg call that egg will start making.
+_egg_laid_source = _sine(392.0, 0.35, attack=0.01, release=0.25)             # G4 — soft plop
 _wild_bird_flyoff_source = _noise_burst(config.WILD_BIRD_DISPERSAL,
                                          attack=0.05, decay=config.WILD_BIRD_DISPERSAL - 0.2, release=0.15)
 
@@ -351,7 +415,7 @@ _SAMPLE_CATEGORIES = (
     'egg-call', 'basket-chime', 'basket-chime-found',
     'scan-egg-ping', 'scan-basket-ping', 'scan-guide', 'bird-call',
     'egg-collect', 'refuse', 'basket-discover', 'basket-deposit',
-    'basket-full', 'hatch-in-basket', 'wild-bird-flyoff',
+    'basket-full', 'hatch-in-basket', 'egg-laid', 'wild-bird-flyoff',
     'footstep', 'footstep-basket',
     'egg-warning', 'scan-start', 'bird-ambient', 'fumble',
     'boot', 'menu-open', 'menu-close', 'ambience', 'origin',
@@ -834,6 +898,12 @@ def fire_hatch_in_basket(basket):
           category='hatch-in-basket')
 
 
+def fire_egg_laid(egg):
+    src = pick_source('egg-laid', fallback=_egg_laid_source)
+    _play(src, position=(egg['x'], egg['y'], egg['z']), volume=0.6,
+          category='egg-laid')
+
+
 def fire_wild_bird_flyoff():
     # Non-positional — the bird flies off and away, plays at the listener
     # since you're losing it.
@@ -841,9 +911,19 @@ def fire_wild_bird_flyoff():
           volume=0.5, category='wild-bird-flyoff')
 
 
+def bird_hearing(bird):
+    """0 when a bird is out of earshot, 1 well inside it, fading between."""
+    d = math.hypot(bird['x'] - state.player['x'], bird['y'] - state.player['y'])
+    return max(0.0, min(1.0, (config.BIRD_AUDIBLE - d) / config.BIRD_FADE))
+
+
 def fire_bird_call(bird):
-    src = pick_source('bird-call', fallback=_bird_call_sources[bird['freq_idx']])
-    _play(src, position=(bird['x'], bird['y'], bird['z']), volume=0.5,
+    hearing = bird_hearing(bird)
+    if hearing <= 0.0:
+        return
+    style = bird.get('call_style') or BIRD_CALL_STYLES[bird['freq_idx'] % 2]
+    src = pick_source('bird-call', fallback=_bird_call_sources[style][bird['freq_idx']])
+    _play(src, position=(bird['x'], bird['y'], bird['z']), volume=0.5 * hearing,
           category='bird-call')
 
 
@@ -951,12 +1031,17 @@ SOUND_CATALOGUE = [
     ('hatch-in-basket', 'Bird hatched',
      'An egg in a basket became one of your birds.',
      lambda: _hatch_in_basket_source),
+    ('egg-laid', 'Egg laid',
+     'One of your birds laid an egg, near its home basket. It plays from '
+     'where the egg now lies.',
+     lambda: _egg_laid_source),
     ('wild-bird-flyoff', 'Bird lost',
      'A held egg hatched before you could deposit it. That bird is gone.',
      lambda: _wild_bird_flyoff_source),
     ('bird-call', 'Bird call',
-     'One of your birds, wandering the park. High.',
-     lambda: _bird_call_sources[0]),
+     'One of your birds, wandering the park. A quick upward chirp or a double '
+     'tweet, high. Eggs hold a steady note; birds slide.',
+     lambda: _bird_call_sources['chirp'][0]),
     ('bird-ambient', 'Bird rustle',
      'A bird moving about, between its calls.',
      lambda: _bird_ambient_source),
@@ -994,9 +1079,12 @@ def fire_scan_start():
 
 
 def fire_bird_ambient(bird):
+    hearing = bird_hearing(bird)
+    if hearing <= 0.0:
+        return
     _play(pick_source('bird-ambient', fallback=_bird_ambient_source),
           position=(bird['x'], bird['y'], bird['z']),
-          volume=0.4, category='bird-ambient')
+          volume=0.4 * hearing, category='bird-ambient')
 
 
 def fire_fumble():

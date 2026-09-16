@@ -102,11 +102,33 @@ SCAN_DURATION = 2.5    # close items ping first, far items last
 
 # Hatching
 HATCH_TIMER_INITIAL = 30.0
+
+# Birds laying eggs. A bird hatched in a basket lays a set number of eggs
+# over its life, one every "Time before a bird lays" (a setting), near its
+# home basket. You keep eggs safe; the birds they become give you more young
+# to keep safe. Plain birds lay one. Chests, when they exist, are meant to
+# hatch birds with more to lay, up to BIRD_EGGS_TO_LAY_MAX.
+BIRD_EGGS_TO_LAY = 1
+BIRD_EGGS_TO_LAY_MAX = 10
+LAY_TIME_DEFAULT = 180.0
+LAID_EGG_MIN = 6.0            # from the home basket: close enough to be "theirs"
+LAID_EGG_MAX = 20.0
+LAID_EGG_MIN_SEPARATION = 8.0  # several birds share a basket; don't stack eggs
 WILD_BIRD_DISPERSAL = 1.5
 BIRD_CALL_MIN_INTERVAL = 8.0
 BIRD_CALL_MAX_INTERVAL = 16.0
 BIRD_WANDER_RADIUS = 10.0
 BIRD_WANDER_SPEED = 0.4
+
+# How far away a bird can be heard. OpenAL's default distance rule, which
+# pyglet never changes, only fades a sound until max_distance (80 m) and
+# then holds it at a quarter volume however far away it is. So every bird in
+# the park could be heard from everywhere, and a flock of thirty was a wall.
+# Eggs and baskets were always limited to earshot; birds never were.
+# Past BIRD_AUDIBLE a bird is silent; over the last BIRD_FADE metres its
+# calls fade out rather than cutting off.
+BIRD_AUDIBLE = 80.0
+BIRD_FADE = 20.0
 
 # Footsteps — distance the player has to walk before the next step fires.
 # Cadence is implicitly tied to walk speed: 1.0 m stride at default 2.0 m/s

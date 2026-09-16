@@ -4,7 +4,7 @@ import math
 import random
 import time
 
-from eggpark import config, prefs, sounds, speech, state
+from eggpark import config, prefs, sounds, speech, state, world
 
 # ============================================================================
 # Hatching + birds
@@ -24,12 +24,15 @@ def hatch_into_your_bird(basket):
         'y': basket['y'] + random.uniform(-1, 1),
         'z': 0.0,
         'freq_idx': random.randrange(len(config.PENTATONIC_FREQS)),
+        'call_style': random.choice(sounds.BIRD_CALL_STYLES),
         'home_x': basket['x'],
         'home_y': basket['y'],
         'wander_angle': random.uniform(0, 2 * math.pi),
         'next_call_at': now_t + random.uniform(2.0, 4.0),
         'next_ambient_at': now_t + random.uniform(
             config.BIRD_AMBIENT_MIN_INTERVAL, config.BIRD_AMBIENT_MAX_INTERVAL),
+        'eggs_to_lay': config.BIRD_EGGS_TO_LAY,
+        'lay_timer': prefs.settings['lay_time'],
     }
     state.birds.append(bird)
     sounds.fire_hatch_in_basket(basket)
@@ -115,3 +118,27 @@ def tick_birds(dt):
             bird['next_ambient_at'] = now_t + random.uniform(
                 config.BIRD_AMBIENT_MIN_INTERVAL, config.BIRD_AMBIENT_MAX_INTERVAL
             )
+
+
+def tick_laying(dt):
+    """Each bird with eggs left to lay counts down and lays one near home.
+
+    Counts down with dt, like hatching, so it stops while the menu or
+    settings are open and the time left is saved with the park. Birds from
+    before laying existed have neither field, and get a plain bird's one egg
+    and a full wait.
+    """
+    if not prefs.settings['enable_bird_laying']:
+        return
+    for bird in state.birds:
+        if bird.setdefault('eggs_to_lay', config.BIRD_EGGS_TO_LAY) <= 0:
+            continue
+        bird['lay_timer'] = bird.get('lay_timer', prefs.settings['lay_time']) - dt
+        if bird['lay_timer'] > 0:
+            continue
+        egg = world.lay_egg_near(bird['home_x'], bird['home_y'])
+        state.eggs.append(egg)
+        bird['eggs_to_lay'] -= 1
+        bird['lay_timer'] = prefs.settings['lay_time']
+        sounds.fire_egg_laid(egg)
+        world.log_counts(f'a bird laid an egg, {bird["eggs_to_lay"]} left for it to lay')
