@@ -122,7 +122,13 @@ EGG_LOST = Tally('egg lost', 0.8, 'fire_wild_bird_flyoff', _eggs_lost,
 # nearest you.
 EGG_WARNING = Tally('egg warning', 1.0, 'fire_egg_warning')
 
-ALL = (GROUND_FLYOFF, BIRD_HATCHED, EGG_LOST, EGG_WARNING)
+# Birds shifting about. Each bird has its own 15-40 second schedule, which is
+# pleasant with ten birds and a hundred rustles a minute with a hundred of
+# them. Held to one per gap, from the nearest bird, so a flock still sounds
+# alive without sounding like static.
+RUSTLE = Tally('bird rustle', 0.7, 'fire_bird_ambient_at')
+
+ALL = (GROUND_FLYOFF, BIRD_HATCHED, EGG_LOST, EGG_WARNING, RUSTLE)
 
 
 def flush_all(now):

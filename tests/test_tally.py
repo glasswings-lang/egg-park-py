@@ -123,6 +123,25 @@ def run_checks(G):
     G['reset_world']()
     check('what was waiting is dropped', tal.count == 0 and tal.next_at == 0.0)
 
+    print('a hundred birds shuffling about:')
+    fresh()
+    G['fire_bird_ambient_at'] = lambda position=None: fired.append(('rustle', position))
+    settings['enable_bird_ambient'] = True
+    basket = G['baskets'][0]
+    for i in range(100):
+        G['make_your_bird'](basket)
+    for bird in birds:
+        bird['next_ambient_at'] = 0.0          # every one of them, due at once
+    fired.clear()
+    for _ in range(int(2 * 60)):
+        G['tick_birds'](1 / 60)
+        clock[0] += 1 / 60
+        G['flush_all'](clock[0])
+    rustles = [f for f in fired if f[0] == 'rustle']
+    most = 2 / G['RUSTLE'].gap + 1
+    check(f'100 birds, 2 seconds: {len(rustles)} rustles, not 100 (at most {most:.0f})',
+          0 < len(rustles) <= most)
+
     print('nothing starves the rest of the world:')
     # The original failure was other cues being dropped for want of a voice.
     # With one report per event kind per frame, a whole park hatching cannot

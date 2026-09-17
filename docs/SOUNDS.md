@@ -511,6 +511,11 @@ you like; the engine plays them at the right positions.
 - **Duration**: 0.15–0.40 s.
 - **Character**: Wing-flap, soft hop, brief rustle. *Not* a call — the
   bird is just moving around. Record 3 variants for organic variety.
+- **Not a puff.** Same rule as `wild-bird-flyoff`, and it matters more here
+  because this fires far more often: one schedule per bird, so a big flock
+  is several a second. The built-in one is a single low-passed wingbeat
+  (1100 Hz), 0.16 s. No treble hiss. However many birds are due at once,
+  only one rustle plays per 0.7 s, from the nearest — see `eggpark/tally.py`.
 - **Files** (3):
   - `bird-ambient-1.wav`
   - `bird-ambient-2.wav`

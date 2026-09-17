@@ -472,8 +472,23 @@ def _scan_guide_generator(frequency, sample_rate, duration):
 _scan_guide_source = pyglet.media.StaticSource(synthesis.SynthesisSource(
     _scan_guide_generator(659.25, 44100, 0.11), 0.11, 44100))                 # E5
 
-# Bird ambient — short noise burst, brighter than a footstep.
-_bird_ambient_source = _noise_burst(0.18, attack=0.02, decay=0.08, release=0.06)
+# Bird ambient — a bird shifting about: one soft wingbeat, not a puff.
+#
+# It was a raw white-noise burst too, the same fault as the flyoff, and it
+# fires far more often: every bird has its own 15-40 second schedule, so a
+# flock of a hundred is several of these a second. Unfiltered noise that
+# often is not texture, it is being hissed at.
+#
+# Built from the same wingbeat as the flyoff, because it is the same creature
+# doing a smaller version of the same thing: one beat, low-passed the same
+# way, short and soft. The flyoff is a bird leaving; this is a bird adjusting
+# itself on a branch.
+_bird_ambient_source = pyglet.media.StaticSource(synthesis.SynthesisSource(
+    _wingbeat_generator(0.16), 0.16, 44100,
+    envelope=synthesis.ADSREnvelope(
+        attack=0.004, decay=0.01, release=0.05, sustain_amplitude=1.0,
+    ),
+))
 
 # "That press did nothing." F with no basket under you, F with empty hands,
 # a scan that found nothing in range.
@@ -1319,12 +1334,20 @@ def fire_scan_start():
 
 
 def fire_bird_ambient(bird):
-    hearing = bird_hearing(bird)
+    fire_bird_ambient_at(position=(bird['x'], bird['y'], bird['z']))
+
+
+def fire_bird_ambient_at(position):
+    """One rustle, from a position. Every bird has its own schedule, so in a
+    big flock these arrive several a second and are counted rather than each
+    played — see tally.RUSTLE. Fades with distance like a bird call, and is
+    silent past earshot."""
+    d = math.hypot(position[0] - state.player['x'], position[1] - state.player['y'])
+    hearing = max(0.0, min(1.0, (config.BIRD_AUDIBLE - d) / config.BIRD_FADE))
     if hearing <= 0.0:
         return
     _play(pick_source('bird-ambient', fallback=_bird_ambient_source),
-          position=(bird['x'], bird['y'], bird['z']),
-          volume=0.4 * hearing, category='bird-ambient')
+          position=position, volume=0.4 * hearing, category='bird-ambient')
 
 
 def fire_fumble():

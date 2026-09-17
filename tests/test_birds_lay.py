@@ -342,6 +342,19 @@ def run_checks(G):
               for i in range(3)]
     check(f'and it fades as the bird leaves ({", ".join(f"{t:.3f}" for t in thirds)})',
           thirds[0] > thirds[1] > thirds[2])
+
+    # The rustle had the same fault and fires far more often: one schedule per
+    # bird, so a flock of a hundred is several a second.
+    rustle, sr = audio(G['_bird_ambient_source'])
+    secs = len(rustle) / sr
+    puff, _ = audio(G['_noise_burst'](secs, attack=0.02, decay=secs - 0.08, release=0.06))
+    check(f'the rustle is wings too: {share_above(rustle, sr, 8000):.1%} above 8 kHz, '
+          f'against {share_above(puff, sr, 8000):.0%} for the puff it replaced',
+          share_above(rustle, sr, 8000) < 0.01)
+    check(f'shorter than the flyoff, and quieter than the puff was '
+          f'({secs:.2f}s, {20 * np.log10(np.sqrt((rustle ** 2).mean()) / np.sqrt((puff ** 2).mean())):+.0f} dB)',
+          secs < 0.4 and np.sqrt((rustle ** 2).mean()) < np.sqrt((puff ** 2).mean()))
+    check(f'never clips (peak {np.abs(rustle).max():.2f})', np.abs(rustle).max() < 0.999)
     settings['enable_ground_hatching'] = False
 
     print('you only hear birds near you:')

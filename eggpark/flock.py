@@ -180,7 +180,7 @@ def tick_birds(dt):
         # falling into a predictable rhythm with the calls.
         if now_t >= bird.get('next_ambient_at', 0):
             if prefs.settings['enable_bird_ambient']:
-                sounds.fire_bird_ambient(bird)
+                tally.RUSTLE.add((bird['x'], bird['y'], bird['z']))
             bird['next_ambient_at'] = now_t + random.uniform(
                 config.BIRD_AMBIENT_MIN_INTERVAL, config.BIRD_AMBIENT_MAX_INTERVAL
             )
