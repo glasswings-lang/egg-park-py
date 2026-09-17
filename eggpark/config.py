@@ -132,6 +132,12 @@ CARRY_START = 1        # starting carry capacity (also grows from there)
 # Scan
 SCAN_RANGE = 200.0
 SCAN_DURATION = 2.5    # close items ping first, far items last
+# The nearest N of each kind actually ping. Space used to ping every egg in
+# range, which was fine with four eggs and not once birds lay clutches: a few
+# hundred eggs meant a few hundred pings at once, which is both an unlistenable
+# wall of sound and more sounds than the audio card will give out (see
+# sounds.MAX_VOICES). The count spoken is still the true one.
+SCAN_MAX_PINGS_PER_KIND = 12
 
 # Hatching
 HATCH_TIMER_INITIAL = 30.0

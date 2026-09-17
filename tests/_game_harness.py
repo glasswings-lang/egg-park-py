@@ -45,8 +45,10 @@ TEST_DIR = (os.environ.get('EGG_PARK_TEST_DIR')
             or tempfile.mkdtemp(prefix='eggpark-test-'))
 PLAY_LOG = os.path.join(TEST_DIR, 'play-log.txt')
 PARK_SAVE = os.path.join(TEST_DIR, 'park.json')
+CRASH_LOG = os.path.join(TEST_DIR, 'crash-log.txt')
 os.environ['EGG_PARK_PLAY_LOG'] = PLAY_LOG
 os.environ['EGG_PARK_SAVE'] = PARK_SAVE
+os.environ['EGG_PARK_CRASH_LOG'] = CRASH_LOG
 import pyglet                                  # noqa: E402
 
 pyglet.options['audio'] = ('silent',)

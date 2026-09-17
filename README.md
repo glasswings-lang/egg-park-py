@@ -135,6 +135,12 @@ many, basket capacity) at every find, pickup, refusal and deposit. The one
 before is kept as `play-log-previous.txt`. If something seems wrong while
 playing, keep playing; the log shows exactly when and what.
 
+If the game ever stops on its own, it writes what went wrong to
+`crash-log.txt` next to `main.py`, saves the park on the way down, and says
+so aloud. Crashes are appended with a date and time rather than overwriting
+each other, so a rare one still leaves a trail. Under `pythonw` there is no
+console, so without this a crash left nothing at all behind.
+
 ## Tests
 
 ```
@@ -148,6 +154,7 @@ python tests/test_egg_spread.py     # eggs spread around your baskets, no drift
 python tests/test_birds_lay.py      # birds lay eggs near home
 python tests/test_chests.py         # chests: gifts, capacity, C and Shift+C
 python tests/test_nets.py           # nets, scooping, basket and chest footsteps
+python tests/test_crash_safety.py   # a scan in a full park, and the crash log
 ```
 
 Plain Python, no pytest. The first two read the game's code as text rather

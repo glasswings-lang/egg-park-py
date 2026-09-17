@@ -58,6 +58,28 @@ def log_event(text):
         pass
 
 
+# crash-log.txt, next to main.py. The game runs under pythonw, which has no
+# console, so a crash used to take the window away and leave NOTHING behind:
+# no message, no traceback, nowhere to look. The one crash that prompted this
+# (Space, with hundreds of eggs in range) was invisible from the inside.
+#
+# Appended to rather than replaced, and stamped, so a crash that only happens
+# once in a while builds a history instead of overwriting the last one.
+CRASH_LOG_FILE = (os.environ.get('EGG_PARK_CRASH_LOG')
+                  or os.path.join(config._script_dir, 'crash-log.txt'))
+
+
+def log_crash(text):
+    """Write a crash to crash-log.txt and the play log. Never raises: this
+    runs while the game is already falling over."""
+    log_event('CRASH: ' + text.replace('\n', ' | '))
+    try:
+        with open(CRASH_LOG_FILE, 'a', encoding='utf-8') as f:
+            f.write(f'\n===== {time.strftime("%Y-%m-%d %H:%M:%S")} =====\n{text}\n')
+    except Exception as exc:
+        print(f'[crash log] could not write: {exc}')
+
+
 def say(text):
     """Speak a line via the user's screen reader."""
     log_event(f'said: {text}')

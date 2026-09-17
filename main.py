@@ -48,6 +48,7 @@ Controls (settings screen):
 """
 
 import os
+import sys
 
 # OpenAL Soft HRTF must be enabled BEFORE pyglet loads its audio driver.
 os.environ['ALSOFT_HRTF'] = '1'
@@ -69,6 +70,31 @@ from eggpark import game, menu, prefs, saving, sounds, speech  # noqa: E402
 # Explicit, and in this order: the log first so anything said is recorded,
 # settings before sounds so the recordings switch is honoured.
 speech._open_play_log()
+
+
+# A crash used to be silent and total: pythonw has no console, so the window
+# vanished, the park went unsaved, and there was nothing to read afterwards.
+# Now anything that gets this far is written to crash-log.txt, the park is
+# saved, and the screen reader says where to look.
+def _on_crash(kind, value, tb):
+    import traceback
+    speech.log_crash(''.join(traceback.format_exception(kind, value, tb)))
+    try:
+        if menu._game_started:
+            saving.save_park('crash')
+    except Exception as exc:
+        speech.log_crash(f'and the park could not be saved either: {exc}')
+    try:
+        speech.say('Egg Park has stopped. Your park was saved, and what went '
+                   'wrong is written in crash log dot text, next to the game.')
+    except Exception:
+        pass
+    # And still print it, for anyone running from a console (tests do).
+    sys.__excepthook__(kind, value, tb)
+
+
+sys.excepthook = _on_crash
+
 prefs.load_settings()
 sounds.rebuild_sample_bank()
 

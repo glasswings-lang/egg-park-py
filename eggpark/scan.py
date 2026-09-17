@@ -46,10 +46,22 @@ def try_scan():
     else:
         stop_scan_guide()
 
+    # Only the nearest few of each kind ping. Space used to ping everything
+    # in range: hundreds of eggs after a few clutches, which was a wall of
+    # sound, and past what the audio card will play at once — it crashed the
+    # game. `items` is sorted, so this keeps the nearest of each.
+    kept, seen = [], {}
+    for entry in items:
+        seen[entry[0]] = seen.get(entry[0], 0) + 1
+        if seen[entry[0]] <= config.SCAN_MAX_PINGS_PER_KIND:
+            kept.append(entry)
+    if len(kept) < len(items):
+        speech.log_event(f'scan: {len(items)} items in range, pinging the nearest {len(kept)}')
+
     # Schedule each ping at a delay proportional to its distance, so
     # close items ping immediately and far items ping later in the sweep.
-    max_dist = items[-1][1] if items[-1][1] > 0 else 1.0
-    for kind, dist, item in items:
+    max_dist = kept[-1][1] if kept[-1][1] > 0 else 1.0
+    for kind, dist, item in kept:
         delay = (dist / max_dist) * config.SCAN_DURATION
         if kind == 'egg':
             pyglet.clock.schedule_once(lambda dt, e=item: sounds.fire_scan_egg_ping(e), delay)

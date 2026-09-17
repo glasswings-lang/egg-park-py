@@ -846,9 +846,32 @@ _active_players = set()
 _listener_locked = set()
 
 
+# How many sounds may play at once.
+#
+# OpenAL hands out a fixed number of sources — 256 on this machine, measured
+# — and asking for the 257th raises, which used to end the game there and
+# then. Space did exactly that: it pinged EVERY egg within 200 m, and once
+# birds had laid a few clutches that was hundreds of pings inside two and a
+# half seconds. Scan, crash.
+#
+# So two guards, and they are deliberately both here rather than one clever
+# one: nothing may ever play past MAX_VOICES, and if OpenAL refuses anyway
+# the sound is dropped and written to the play log. A missing chirp is a
+# thing you might not even notice. A closed window loses the park.
+MAX_VOICES = 64
+
+
 def _play(source, *, position=None, volume=1.0, category=None,
           min_distance=None, max_distance=None, pitch=1.0):
-    p = pyglet.media.Player()
+    if len(_active_players) >= MAX_VOICES:
+        speech.log_event(f'dropped a {category or "sound"}: {len(_active_players)} '
+                         f'already playing (the most is {MAX_VOICES})')
+        return
+    try:
+        p = pyglet.media.Player()
+    except Exception as exc:
+        speech.log_event(f'COULD NOT PLAY a {category or "sound"}: {exc}')
+        return
     p.queue(source)
     p.pitch = pitch
     # Per-category volume multiplies on top of master volume. Category names
@@ -890,7 +913,14 @@ def _play(source, *, position=None, volume=1.0, category=None,
     _active_players.add(p)
     if at_listener:
         _listener_locked.add(p)
-    p.play()
+    # OpenAL only reaches for a source HERE, inside play(), which is where
+    # the crash came from. Dropping the sound is the whole recovery.
+    try:
+        p.play()
+    except Exception as exc:
+        _active_players.discard(p)
+        _listener_locked.discard(p)
+        speech.log_event(f'COULD NOT PLAY a {category or "sound"}: {exc}')
 
 
 # --- One sound-effect function per "category." Swap each to use samples
