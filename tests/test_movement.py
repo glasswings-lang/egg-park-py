@@ -100,8 +100,55 @@ def run_checks(G):
     player.update(x=0.0)
     for _ in range(60):
         G['update'](1 / 60)
-    check(f'step away and back: told again ({len(refusals)} in all)', len(refusals) == 2)
+    check(f'step away and back: not told again ({len(refusals)} in all)', len(refusals) == 1)
+
+    print('walking with full hands through a park full of eggs:')
+    # The bug this replaced: one "Hands full" per egg, with a flag per egg so
+    # standing still couldn't repeat it. A real park reached 4,000 eggs, so
+    # walking crossed a new one every stride: 204 spoken lines in a minute,
+    # and with NVDA asleep they cannot be interrupted.
+    spoken.clear()
+    refusals.clear()
+    G['forget_hands_full']()
+    G['eggs'].clear()
+    for i in range(60):
+        G['eggs'].append({'x': 2.0 + i * 2.0, 'y': 0.0, 'z': 0.0, 'freq_idx': 0,
+                          'hatch_timer': 999.0, 'laid': True})
+    player.update(x=0.0, y=0.0, yaw=0.0)
+    keys.on_key_press(key.W, 0)
+    for _ in range(int(30 * 60)):              # 30 seconds, ~60 m, past 30 eggs
+        G['update'](1 / 60)
+    keys.on_key_release(key.W, 0)
+    # Eggs now behind you: each one was in reach as you crossed it, and each
+    # was a fresh chance for the old code to speak. (The flag on an egg is
+    # cleared once you step away, so counting flags now would count 2.)
+    passed = sum(1 for e in G['eggs'] if e['x'] < player['x'])
+    said = [s for s in spoken if s.startswith('Hands full')]
+    check(f'walked past {passed} eggs it could not take, said so {len(said)} time(s)',
+          passed >= 20 and len(said) == 1)
+    check(f'and one refusal sound, not {passed}', len(refusals) == 1)
+
+    print('depositing makes it news again:')
+    G['forget_hands_full']()                   # what try_deposit calls
+    spoken.clear()
+    player.update(x=0.0, y=0.0)
+    for _ in range(60):
+        G['update'](1 / 60)
+    check('told once more after a deposit',
+          len([s for s in spoken if s.startswith('Hands full')]) == 1)
+    G['REFUSE_REPEAT_SECONDS'] = 0.0
+    spoken.clear()
+    for _ in range(120):
+        G['update'](1 / 60)
+    check('with the wait set to nothing it speaks again, so the wait is what holds it back',
+          len([s for s in spoken if s.startswith('Hands full')]) > 1)
+    G['REFUSE_REPEAT_SECONDS'] = 20.0
+
+    G['eggs'].clear()
+    egg = {'x': 0.0, 'y': 0.0, 'z': 0.0, 'freq_idx': 0, 'hatch_timer': 999.0}
+    G['eggs'].append(egg)
     G['held'].clear()
+    player.update(x=0.0, y=0.0)
     G['update'](1 / 60)
     check('with room, the same egg is picked up', egg not in G['eggs'] and len(G['held']) == 1)
 

@@ -125,6 +125,11 @@ NET_CHANCE = 0.5           # chance a chest holds a net
 NET_REACH_EACH = 2.0       # metres of reach each net adds to COLLECT_RADIUS
 NET_REACH_MAX = 16.0       # reach never goes past this, however many nets
 
+# "Hands full": how long before walking into another egg you cannot take says
+# so again. Depositing clears it too, so this only matters if you keep walking
+# with full hands.
+REFUSE_REPEAT_SECONDS = 20.0
+
 # Capacity
 CARRY_BUMP_EVERY = 3   # player carry cap grows by 1 every N basket discoveries
 CARRY_START = 1        # starting carry capacity (also grows from there)

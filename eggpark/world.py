@@ -2,6 +2,7 @@
 """Eggs and baskets: capacity, spawning, picking up, finding, depositing."""
 import math
 import random
+import time
 
 from eggpark import chests, config, prefs, scan, sounds, speech, state
 
@@ -202,6 +203,7 @@ def reset_world():
     state.progress.update(carry_bonus=0, storage_bonus=0, nets=0)
     state.player.update({'x': 0.0, 'y': 0.0, 'z': 0.0, 'yaw': 0.0})
     _last_seen_counts.update(found=0, carry=0)
+    forget_hands_full()
     log_counts('world reset for a new park')
     # A guide left over would lead toward a basket from the old park.
     scan.stop_scan_guide()
@@ -228,6 +230,40 @@ def initial_spawn():
             'freq_idx': i % len(config.PENTATONIC_FREQS),
             'hatch_timer': prefs.settings['hatch_time'],
         })
+
+
+# "Hands full" is ONE message, however many eggs you walk past.
+#
+# It was once per egg, with a flag on each egg so standing on one couldn't
+# repeat it. That held up while there were four eggs in the park. Birds lay
+# clutches, nothing eats eggs, and a real park reached four thousand of them:
+# walking with full hands then crossed a new egg every stride, each one a
+# fresh egg with no flag on it, and a play log caught 204 spoken "Hands full"
+# lines in a minute. With NVDA asleep — which is how the game is meant to be
+# played — you cannot even interrupt them.
+#
+# So it is said once and then held back until something you did changes the
+# situation: you deposit, or REFUSE_REPEAT_SECONDS pass. Being told your hands
+# are full is worth one sentence. It is not worth a running commentary.
+_last_hands_full_at = None
+
+
+def _may_say_hands_full():
+    global _last_hands_full_at
+    now = time.monotonic()
+    if (_last_hands_full_at is not None
+            and now - _last_hands_full_at < config.REFUSE_REPEAT_SECONDS):
+        return False
+    _last_hands_full_at = now
+    log_counts('egg refused, hands full')
+    return True
+
+
+def forget_hands_full():
+    """Next full-handed egg may speak again. Called when you deposit: your
+    hands just changed, so the message is news rather than nagging."""
+    global _last_hands_full_at
+    _last_hands_full_at = None
 
 
 def try_collect_eggs():
@@ -281,24 +317,19 @@ def try_collect_eggs():
         collected += 1
         log_counts('egg collected')
 
-    # Hands full: said once per visit. This runs every frame, and it used to
-    # refuse every frame: a play log caught 465 "Hands full" sounds and spoken
-    # lines in eight seconds of standing on one egg. Eggs stay put so you can
-    # come back after depositing.
-    new_refusals = [e for e in left_behind if not e.get('refused')]
+    # Hands full: told ONCE, then left alone. See _may_say_hands_full.
     for egg in left_behind:
         egg['refused'] = True
+    say_full = left_behind and _may_say_hands_full()
 
     held = f'{len(state.held)} of {player_carry_cap()} held.'
     if collected:
         sounds.fire_collect_sound()
         line = ('Egg collected. ' if collected == 1 else f'Scooped {collected} eggs. ') + held
-        if new_refusals:
+        if say_full:
             line += ' Hands full.'
-            log_counts('egg refused, hands full')
         speech.say(line)
-    elif new_refusals:
-        log_counts('egg refused, hands full')
+    elif say_full:
         sounds.fire_refuse_sound()
         speech.say(f'Hands full. {len(state.held)} eggs held.')
 
@@ -422,6 +453,7 @@ def try_deposit():
     for _ in range(n):
         on['eggs'].append(state.held.pop(0))
     sounds.fire_deposit_sound(on)
+    forget_hands_full()
     log_counts(f'deposited {n}, {name.lower()} now {len(on["eggs"])}')
     if n < len(state.held) + n:
         speech.say(f'Deposited {n}. {name} {len(on["eggs"])} of {cap}. {len(state.held)} still held.')

@@ -109,11 +109,17 @@ def run_checks(G):
     check(f'says so once, in the same line ({spoken!r})',
           spoken == ['Scooped 3 eggs. 3 of 3 held. Hands full.'])
     check('no separate refusal sound over the pickup', not refusals and len(collects) == 1)
+    # Told once and then left alone: walking with full hands through a park
+    # of thousands of eggs used to be a running commentary. See test_movement.
+    spoken.clear()
     P.update(x=50.0)
     G['try_collect_eggs']()
     P.update(x=0.0)
     G['try_collect_eggs']()
-    check(f'walk away and back: told once more ({spoken[-1]!r})',
+    check(f'walk away and back: not told again ({spoken!r})', not spoken and not refusals)
+    G['forget_hands_full']()                   # what depositing does
+    G['try_collect_eggs']()
+    check(f'after a deposit it is news again ({spoken[-1]!r})',
           len(refusals) == 1 and spoken[-1].startswith('Hands full'))
 
     print('wild eggs picked up by a net come back far away:')
