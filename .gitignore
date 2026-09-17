@@ -20,6 +20,10 @@ settings.json
 play-log.txt
 play-log-previous.txt
 
+# Crashes, one after another with a date and time each. Personal to one
+# machine, and something to read rather than to ship.
+crash-log.txt
+
 # Your saved park, its backup, and any save that couldn't be read. Yours.
 park.json
 park-previous.json
