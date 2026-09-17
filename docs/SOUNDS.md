@@ -408,6 +408,14 @@ you like; the engine plays them at the right positions.
 - **Character**: Crack + chirp like `hatch-in-basket`, but with a
   "flutter away" tail. The bird is leaving you. Bittersweet — not a
   punishment sound, just a consequence.
+- **Not hiss.** The built-in one was 1.5 s of raw white noise and was
+  reported as sounding like a can of compressed air. It is now a handful of
+  wingbeats: short low-passed pulses with a fast attack, starting quick and
+  spreading out, each quieter than the last as the bird gets away. Cut at
+  1100 Hz — below the footsteps (5 kHz) and above the ambience bed (200 Hz),
+  so it moves air without becoming either a footfall or weather. A recording
+  should follow the same rule: wings, low, separate beats, nothing in the
+  treble.
 - **Files** (3):
   - `wild-bird-flyoff-1.wav`
   - `wild-bird-flyoff-2.wav`
