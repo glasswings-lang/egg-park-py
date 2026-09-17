@@ -3,7 +3,7 @@
 import math
 import random
 
-from eggpark import config, prefs, scan, sounds, speech, state
+from eggpark import chests, config, prefs, scan, sounds, speech, state
 
 # ============================================================================
 # Capacity helpers
@@ -14,23 +14,41 @@ def discovered_count():
 
 
 def player_carry_cap():
-    """Starts at CARRY_START; +1 per CARRY_BUMP_EVERY baskets discovered."""
-    return config.CARRY_START + (discovered_count() // config.CARRY_BUMP_EVERY)
+    """Starts at CARRY_START; +1 per CARRY_BUMP_EVERY baskets discovered, plus
+    every carry gift from chests."""
+    return (config.CARRY_START + (discovered_count() // config.CARRY_BUMP_EVERY)
+            + state.progress['carry_bonus'])
+
+
+def chests_found():
+    return sum(1 for c in state.chests if c['discovered'])
+
+
+def storage_extra():
+    """Added to every basket and chest: storage gifts, plus one per chest found."""
+    return state.progress['storage_bonus'] + chests_found()
 
 
 def basket_cap():
     """Each basket holds one egg per basket discovered, and never less than
-    you can carry: one trip's worth must always fit in one basket. Today the
-    found count is always the bigger of the two, but carrying is meant to be
-    boosted by chests, and this has to stay true when it is."""
-    return max(1, discovered_count(), player_carry_cap())
+    you can carry: one trip's worth must always fit in one basket. Chests'
+    storage gifts, and finding chests at all, add on top."""
+    return max(1, discovered_count(), player_carry_cap()) + storage_extra()
+
+
+def chest_cap():
+    """Chests start bigger and grow twice as fast per basket found, never hold
+    less than you can carry, and get the same storage additions as baskets."""
+    base = config.CHEST_START_CAPACITY + config.CHEST_CAPACITY_PER_BASKET * discovered_count()
+    return max(base, player_carry_cap()) + storage_extra()
 
 
 def log_counts(event):
     """A play-log line with every number capacity depends on, as it is now."""
     speech.log_event(
-        f'{event} | found {discovered_count()} | carry {len(state.held)} of '
-        f'{player_carry_cap()} | basket cap {basket_cap()} | '
+        f'{event} | found {discovered_count()} | chests {chests_found()} | carry {len(state.held)} of '
+        f'{player_carry_cap()} | basket cap {basket_cap()} | chest cap {chest_cap()} | '
+        f'gift bonuses {state.progress} | '
         f'baskets in world {len(state.baskets)} | eggs in world {len(state.eggs)} | '
         f'at ({state.player["x"]:.1f}, {state.player["y"]:.1f})')
 
@@ -61,7 +79,8 @@ def spawn_egg_far_from_player():
     room: one is always owed the moment you pick one up. So if no try clears
     the spacing, it takes the try that was furthest from its nearest egg.
     """
-    anchors = [(b['x'], b['y']) for b in state.baskets if b['discovered']] or [(0.0, 0.0)]
+    anchors = ([(b['x'], b['y']) for b in state.baskets + state.chests if b['discovered']]
+               or [(0.0, 0.0)])
     return _place_egg(anchors, config.EGG_SPAWN_MIN, config.EGG_SPAWN_MAX,
                       config.EGG_MIN_SEPARATION)
 
@@ -172,6 +191,8 @@ def reset_world():
     # new park inherits every basket the last one grew.
     state.baskets.clear()
     state.baskets.extend(dict(b, eggs=[]) for b in state.INITIAL_BASKETS)
+    state.chests.clear()
+    state.progress.update(carry_bonus=0, storage_bonus=0)
     state.player.update({'x': 0.0, 'y': 0.0, 'z': 0.0, 'yaw': 0.0})
     _last_seen_counts.update(found=0, carry=0)
     log_counts('world reset for a new park')
@@ -342,36 +363,40 @@ def try_discover_basket():
 
 
 def try_deposit():
-    """Bound to F. Drop everything from hand into the basket you're on."""
-    on = current_basket()
+    """Bound to F. Drop everything from hand into the chest or basket you're on."""
+    on, name, cap = chests.current_chest(), 'Chest', chest_cap()
+    if on is None:
+        on, name, cap = current_basket(), 'Basket', basket_cap()
     if on is None:
         sounds.fire_fumble()
-        speech.say('Not standing on a basket.')
+        speech.say('Not standing on a basket or chest.')
         return
     if not on['discovered']:
-        # Standing on an undiscovered basket — discover first, then deposit
+        # Standing on an undiscovered one — discover first, then deposit
         # can be retried on next press.
-        try_discover_basket()
+        if name == 'Chest':
+            chests.try_discover_chest()
+        else:
+            try_discover_basket()
         return
     if not state.held:
         sounds.fire_fumble()
         speech.say('No eggs to deposit.')
         return
-    cap = basket_cap()
     room = cap - len(on['eggs'])
     if room <= 0:
         sounds.fire_basket_full_sound()
-        speech.say(f'Basket full. Holds {cap}.')
+        speech.say(f'{name} full. Holds {cap}.')
         return
     n = min(room, len(state.held))
     for _ in range(n):
         on['eggs'].append(state.held.pop(0))
     sounds.fire_deposit_sound(on)
-    log_counts(f'deposited {n}, basket now {len(on["eggs"])}')
+    log_counts(f'deposited {n}, {name.lower()} now {len(on["eggs"])}')
     if n < len(state.held) + n:
-        speech.say(f'Deposited {n}. Basket {len(on["eggs"])} of {cap}. {len(state.held)} still held.')
+        speech.say(f'Deposited {n}. {name} {len(on["eggs"])} of {cap}. {len(state.held)} still held.')
     else:
-        speech.say(f'Deposited {n}. Basket {len(on["eggs"])} of {cap}.')
+        speech.say(f'Deposited {n}. {name} {len(on["eggs"])} of {cap}.')
 
 
 def current_basket():

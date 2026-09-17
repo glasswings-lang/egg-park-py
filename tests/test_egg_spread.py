@@ -66,6 +66,23 @@ def run_checks(G):
     near_far = sum(1 for _ in range(100) if dist(G['spawn_egg_far_from_player'](), far) <= 90)
     check(f'a newly found distant basket gets eggs around it ({near_far} of 100)', 10 <= near_far <= 60)
 
+    print('baskets appear inside earshot:')
+    # A basket placed past earshot doesn't count as one waiting nearby, so
+    # another would be made at once, and baskets pile up. Two hundred walks
+    # into empty ground, spawning until the game says there are enough.
+    extra = 0
+    for trial in range(200):
+        G['reset_world']()
+        player.update(x=5000.0 + trial * 400.0, y=5000.0)
+        for _ in range(20):
+            G['maybe_spawn_basket']()
+        extra += len(baskets) - 3 - G['BASKET_TARGET_UNFOUND']
+    check(f'200 walks into empty ground: extra baskets beyond the {G["BASKET_TARGET_UNFOUND"]} wanted: {extra}',
+          extra == 0)
+    G['reset_world']()
+    for b in baskets:
+        b['discovered'] = True
+
     print('before any basket is found:')
     for b in baskets:
         b['discovered'] = False

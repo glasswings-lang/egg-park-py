@@ -350,6 +350,42 @@ you like; the engine plays them at the right positions.
   - `hatch-in-basket-2.wav`
   - `hatch-in-basket-3.wav`
 
+### `chest-chime` — 1 variant
+- **Trigger**: The nearest chest within 80 m, one you haven't found yet.
+  Faster as you get closer, on its own timer apart from baskets.
+- **Spatial**: yes.
+- **Duration**: 1.0–1.5 s.
+- **Character**: Must not sound like a basket, egg, bird or the guide. The
+  placeholder is a struck metal bell (overtones that don't line up with the
+  note) at A flat 3. A real chest soundscape is still to be designed.
+- **Files** (1):
+  - `chest-chime.wav`
+
+### `chest-chime-found` — 1 variant
+- **Trigger**: The same, for a chest you have found. Shares the chest chime
+  volume slider.
+- **Spatial**: yes.
+- **Character**: The same voice as `chest-chime`, brighter.
+- **Files** (1):
+  - `chest-chime-found.wav`
+
+### `chest-discover` — 1 variant
+- **Trigger**: Walking onto a chest for the first time. Its three gifts are
+  rolled and spoken right after.
+- **Spatial**: yes, at the chest.
+- **Duration**: 1.5–2.5 s.
+- **Character**: A reveal. The placeholder strikes the bell, then a fifth above.
+- **Files** (1):
+  - `chest-discover.wav`
+
+### `scan-chest-ping` — 1 variant
+- **Trigger**: A chest answering Space, or C / Shift+C picking one.
+- **Spatial**: yes.
+- **Duration**: 0.2–0.5 s.
+- **Character**: A short strike of the chest voice.
+- **Files** (1):
+  - `scan-chest-ping.wav`
+
 ### `egg-laid` — 1 variant
 - **Trigger**: One of your birds lays an egg, a short way from its home
   basket.
@@ -619,6 +655,10 @@ work outward.
 | basket-full            | 1     |
 | hatch-in-basket        | 3     |
 | egg-laid               | 1     |
+| chest-chime            | 1     |
+| chest-chime-found      | 1     |
+| chest-discover         | 1     |
+| scan-chest-ping        | 1     |
 | wild-bird-flyoff       | 3     |
 | footstep               | 5     |
 | egg-warning            | 2     |
@@ -630,9 +670,9 @@ work outward.
 | menu-open              | 1     |
 | menu-close             | 1     |
 | origin                 | 2     |
-| **Total**              | **56** |
+| **Total**              | **60** |
 
-56 files for a complete sound replacement. Variant counts are
+60 files for a complete sound replacement. Variant counts are
 suggestions — record more if you want a bigger pool to draw from, fewer
 if you're happy with less variety. The engine doesn't care how many.
 

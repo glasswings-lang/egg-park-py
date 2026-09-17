@@ -32,9 +32,9 @@ def run_checks(G):
     lines = open(_game_harness.PLAY_LOG, encoding='utf-8').read().splitlines()
     found = [l for l in lines if 'basket found' in l]
     check(f'every find logged ({len(found)} of 3)', len(found) == 3)
-    check('third find shows carry cap 2', 'found 3 | carry 0 of 2' in found[-1])
+    check('third find shows carry cap 2', 'found 3 | chests 0 | carry 0 of 2' in found[-1])
     check('spoken lines are logged', any('said: Basket discovered. 3 found.' in l for l in lines))
-    check('pickup logged with its numbers', any('egg collected | found 3 | carry 1 of 2' in l for l in lines))
+    check('pickup logged with its numbers', any('egg collected | found 3 | chests 0 | carry 1 of 2' in l for l in lines))
     check('a find going missing is flagged', any('UNEXPECTED DROP' in l for l in lines))
     for l in lines[-4:]:
         print('    ' + l)

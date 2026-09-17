@@ -33,6 +33,13 @@ baskets = [dict(b, eggs=[]) for b in INITIAL_BASKETS]
 # spawned egg this came from once collected — they're fungible.
 held = []
 
+# Chests: see eggpark/chests.py. Each: {x, y, z, discovered, eggs, gifts,
+# clutch_bonus}. None at the start; they appear as you explore.
+chests = []
+
+# What chest gifts have added so far, for the whole park.
+progress = {'carry_bonus': 0, 'storage_bonus': 0}
+
 # Hatched birds wandering the world. Each: {x, y, z, freq_idx, home_x,
 # home_y, wander_angle, next_call_at}.
 birds = []

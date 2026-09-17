@@ -216,6 +216,56 @@ _hatch_in_basket_source = _sine(523.25, 1.6, attack=0.30, release=0.30)     # C5
 # marks where a new egg now lies; a sine so it isn't mistaken for the
 # triangle egg call that egg will start making.
 _egg_laid_source = _sine(392.0, 0.35, attack=0.01, release=0.25)             # G4 — soft plop
+
+# Chests: a struck METAL BELL, unlike anything else in the park.
+#
+# Every other placeholder is a clean musical tone whose overtones sit on
+# whole-number multiples of its note (sine, triangle, the plucks and chirps).
+# A bell made by frequency modulation at a non-whole ratio puts its overtones
+# BETWEEN those multiples, which is what the ear hears as struck metal rather
+# than a note. That, not pitch, is what keeps it apart. tests/test_chests.py
+# measures it.
+#
+# Pitch Ab3 (207.65 Hz): above the highest basket note (G3, 196) and below the
+# lowest egg (A3, 220), so it doesn't sit on top of either. Placeholder only;
+# a proper chest soundscape comes later.
+CHEST_BELL_HZ = 207.65
+CHEST_BELL_RATIO = 1.41      # modulator / carrier: deliberately not a whole number
+
+
+def _bell_generator(strikes, duration, sample_rate=44100):
+    """`strikes`: (start seconds, carrier Hz, brightness, ring seconds). Each is
+    a frequency-modulated bell whose brightness fades faster than its ring."""
+    n = int(duration * sample_rate)
+    peak = sum(1.0 for _ in strikes)
+    for i in range(n):
+        t = i / sample_rate
+        v = 0.0
+        for start, hz, brightness, ring in strikes:
+            s = t - start
+            if s < 0.0:
+                continue
+            env = min(s / 0.003, 1.0) * math.exp(-s / ring)
+            index = brightness * math.exp(-s / (ring * 0.4))
+            v += env * math.sin(2.0 * math.pi * hz * s
+                                + index * math.sin(2.0 * math.pi * hz * CHEST_BELL_RATIO * s))
+        yield v / peak
+    while True:
+        yield 0.0
+
+
+def _bell_source(strikes, duration):
+    return pyglet.media.StaticSource(synthesis.SynthesisSource(
+        _bell_generator(strikes, duration), duration, 44100))
+
+
+_chest_chime_source = _bell_source([(0.0, CHEST_BELL_HZ, 2.5, 0.45)], 1.4)
+# Found: the same bell struck harder, so brighter. Same idea as found baskets.
+_chest_chime_found_source = _bell_source([(0.0, CHEST_BELL_HZ, 4.5, 0.45)], 1.4)
+# Found, with gifts: the bell, then a fifth above it, rising.
+_chest_discover_source = _bell_source(
+    [(0.0, CHEST_BELL_HZ, 3.5, 0.5), (0.22, CHEST_BELL_HZ * 1.5, 3.5, 0.6)], 2.2)
+_scan_chest_ping_source = _bell_source([(0.0, CHEST_BELL_HZ, 2.5, 0.15)], 0.5)
 _wild_bird_flyoff_source = _noise_burst(config.WILD_BIRD_DISPERSAL,
                                          attack=0.05, decay=config.WILD_BIRD_DISPERSAL - 0.2, release=0.15)
 
@@ -416,6 +466,7 @@ _SAMPLE_CATEGORIES = (
     'scan-egg-ping', 'scan-basket-ping', 'scan-guide', 'bird-call',
     'egg-collect', 'refuse', 'basket-discover', 'basket-deposit',
     'basket-full', 'hatch-in-basket', 'egg-laid', 'wild-bird-flyoff',
+    'chest-chime', 'chest-chime-found', 'chest-discover', 'scan-chest-ping',
     'footstep', 'footstep-basket',
     'egg-warning', 'scan-start', 'bird-ambient', 'fumble',
     'boot', 'menu-open', 'menu-close', 'ambience', 'origin',
@@ -898,6 +949,29 @@ def fire_hatch_in_basket(basket):
           category='hatch-in-basket')
 
 
+def fire_chest_chime(chest):
+    """Found and unfound chests have separate recordings but ONE volume
+    slider, the same as baskets."""
+    if chest['discovered']:
+        src = pick_source('chest-chime-found', fallback=_chest_chime_found_source)
+    else:
+        src = pick_source('chest-chime', fallback=_chest_chime_source)
+    _play(src, position=(chest['x'], chest['y'], chest['z']), volume=0.5,
+          category='chest-chime')
+
+
+def fire_chest_discover(chest):
+    _play(pick_source('chest-discover', fallback=_chest_discover_source),
+          position=(chest['x'], chest['y'], chest['z']), volume=0.7,
+          category='chest-discover')
+
+
+def fire_scan_chest_ping(chest):
+    _play(pick_source('scan-chest-ping', fallback=_scan_chest_ping_source),
+          position=(chest['x'], chest['y'], chest['z']), volume=0.7,
+          category='scan-chest-ping')
+
+
 def fire_egg_laid(egg):
     src = pick_source('egg-laid', fallback=_egg_laid_source)
     _play(src, position=(egg['x'], egg['y'], egg['z']), volume=0.6,
@@ -1042,6 +1116,19 @@ SOUND_CATALOGUE = [
      'One of your birds laid an egg, near its home basket. It plays from '
      'where the egg now lies.',
      lambda: _egg_laid_source),
+    ('chest-chime', 'Chest, not yet found',
+     'A chest you have not walked onto yet. A metal bell. Speeds up as you approach.',
+     lambda: _chest_chime_source),
+    ('chest-chime-found', 'Chest, already found',
+     'A chest you have found. The same bell, struck brighter.',
+     lambda: _chest_chime_found_source),
+    ('chest-discover', 'Chest found',
+     'You walked onto a chest and its three gifts were rolled. The bell, then '
+     'a note above it.',
+     lambda: _chest_discover_source),
+    ('scan-chest-ping', 'Scan ping, chest',
+     'One chest answering a scan, or C finding one.',
+     lambda: _scan_chest_ping_source),
     ('wild-bird-flyoff', 'Bird lost',
      'A held egg hatched before you could deposit it. That bird is gone.',
      lambda: _wild_bird_flyoff_source),

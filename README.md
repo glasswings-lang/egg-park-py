@@ -146,6 +146,7 @@ python tests/test_play_log.py       # the play log records finds and capacity
 python tests/test_park_save.py      # the park survives closing the game
 python tests/test_egg_spread.py     # eggs spread around your baskets, no drift
 python tests/test_birds_lay.py      # birds lay eggs near home
+python tests/test_chests.py         # chests: gifts, capacity, C and Shift+C
 ```
 
 Plain Python, no pytest. The first two read the game's code as text rather
@@ -182,7 +183,9 @@ still deciding what you want to do.
 | **E** / Right arrow | Turn right                                       |
 | **Space**           | Scan — reveal nearby eggs and baskets by ping    |
 | **B**               | Guide to the nearest found basket with room      |
-| **V**               | Guide to the nearest basket not yet found        |
+| **V** / **Shift+B** | Guide to the nearest basket not yet found        |
+| **C**               | Guide to the nearest found chest with room       |
+| **Shift+C**         | Guide to the nearest chest not yet found         |
 | **F**               | Deposit held eggs at the basket you're on        |
 | **P**               | Speak status (heading, distances, counts, caps)  |
 | **R**               | Reload sample bank (re-scan samples folder)      |
@@ -240,6 +243,7 @@ egg-park-py/
 │   ├── world.py       #   eggs and baskets: spawning, pickup, deposit
 │   ├── scan.py        #   scanning, B, and the scan guide
 │   ├── flock.py       #   hatching and birds
+│   ├── chests.py      #   chests: gifts, finding, C and Shift+C
 │   ├── game.py        #   window, keys, per-frame update, status
 │   └── saving.py      #   saving and loading the park
 ├── tests/             # see Tests above

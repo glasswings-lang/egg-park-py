@@ -73,7 +73,10 @@ BASKET_CHIME_INTERVAL_NEAR = 1.0
 # haven't been, so exploring in any direction eventually pays.
 BASKET_TARGET_UNFOUND = 2     # unclaimed baskets kept available at any time
 BASKET_SPAWN_MIN = 45.0       # never closer than this to the player...
-BASKET_SPAWN_MAX = 85.0       # ...nor further than earshot plus a little
+BASKET_SPAWN_MAX = 75.0       # ...and INSIDE earshot (80). It was 85, "earshot plus a
+                              # little", but a basket placed past 80 doesn't count as
+                              # waiting nearby, so another was made at once: 50 extra
+                              # in 200 test walks. Baskets outnumbered eggs partly because of it.
 BASKET_MIN_SEPARATION = 25.0  # keep them apart or two chimes fight for the ear
 BASKET_PLACE_ATTEMPTS = 24    # tries to find a spot before giving up this tick
 # Unclaimed baskets left far behind are forgotten. Without this the park
@@ -91,6 +94,25 @@ BASKET_PLACE_ATTEMPTS = 24    # tries to find a spot before giving up this tick
 # Comfortably beyond earshot, so nothing is ever removed while it can still
 # be heard.
 BASKET_FORGET_DISTANCE = BASKET_AUDIBLE * 1.75
+
+# Chests: see eggpark/chests.py for what they are and why.
+CHEST_TARGET_UNFOUND = 1       # unfound chests kept within earshot (baskets: 2)
+CHEST_SPAWN_MIN = 55.0         # further out than baskets' 45...
+CHEST_SPAWN_MAX = 75.0         # ...but INSIDE earshot (80): one placed past it doesn't count
+                               # as waiting, so a second would spawn straight away
+CHEST_MIN_SEPARATION = 30.0    # from every basket and chest
+CHEST_PLACE_ATTEMPTS = 24
+CHEST_AUDIBLE = 80.0
+CHEST_FORGET_DISTANCE = CHEST_AUDIBLE * 1.75
+CHEST_DEPOSIT_RADIUS = 5.0     # wider than a basket's 2: more of a place to walk onto
+CHEST_DISCOVER_RADIUS = 7.0    # basket: 3.5
+CHEST_CHIME_INTERVAL_FAR = 4.5
+CHEST_CHIME_INTERVAL_NEAR = 1.2
+CHEST_START_CAPACITY = 5       # a chest holds this plus...
+CHEST_CAPACITY_PER_BASKET = 2  # ...this per basket found (a basket: 1 per basket found)
+CHEST_GIFT_SLOTS = 3
+CHEST_GIFT_MIN = 1
+CHEST_GIFT_MAX = 5
 
 # Capacity
 CARRY_BUMP_EVERY = 3   # player carry cap grows by 1 every N basket discoveries

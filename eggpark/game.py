@@ -6,7 +6,7 @@ import time
 import pyglet
 from pyglet.window import key
 
-from eggpark import config, flock, menu, prefs, saving, scan, sounds, soundtest, speech, state, world
+from eggpark import chests, config, flock, menu, prefs, saving, scan, sounds, soundtest, speech, state, world
 
 # ============================================================================
 # Window + input
@@ -31,7 +31,9 @@ CONTROL_HELP = (
     ('Turn', 'Q or left arrow turns left. E or right arrow turns right.'),
     ('Do', 'Space scans for eggs and leads you to the nearest. '
            'B leads you to the nearest found basket with room. '
-           'V leads you to the nearest basket you have not found yet. '
+           'V or Shift B leads you to the nearest basket you have not found yet. '
+           'C leads you to the nearest found chest with room, '
+           'Shift C to the nearest chest you have not found. '
            'F deposits at a basket. P speaks your status.'),
     ('Set up', 'O opens settings. Left and right square brackets '
                'lower and raise the volume. R reloads the sample bank.'),
@@ -137,10 +139,16 @@ def on_key_press(symbol, modifiers):
         world.try_deposit()
     elif symbol == key.SPACE:
         scan.try_scan()
+    elif symbol == key.B and modifiers & key.MOD_SHIFT:
+        scan.try_scan_unfound_baskets()
     elif symbol == key.B:
         scan.try_scan_found_baskets()
     elif symbol == key.V:
         scan.try_scan_unfound_baskets()
+    elif symbol == key.C and modifiers & key.MOD_SHIFT:
+        chests.try_scan_unfound_chests()
+    elif symbol == key.C:
+        chests.try_scan_found_chests()
     elif symbol == key.R:
         sounds.reload_sample_bank()
     elif symbol == key.O:
@@ -179,6 +187,7 @@ window.push_handlers(
 
 _next_egg_call_at = 0.0
 _next_basket_chime_at = 0.0
+_next_chest_chime_at = 0.0
 _next_origin_chime_at = 0.0
 _dist_since_step = 0.0  # accumulates walked meters; fires footstep at STEP_DISTANCE
 _clock_start = time.monotonic()
@@ -190,6 +199,7 @@ def now():
 
 def update(dt):
     global _next_egg_call_at, _next_basket_chime_at, _next_origin_chime_at, _dist_since_step
+    global _next_chest_chime_at
 
     # Settings screen pauses the world entirely — no movement, no ticks,
     # no calls. Hatch timers don't advance, so opening settings mid-game
@@ -241,6 +251,9 @@ def update(dt):
     world.try_discover_basket()
     world.forget_distant_baskets()
     world.maybe_spawn_basket()
+    chests.try_discover_chest()
+    chests.forget_distant_chests()
+    chests.maybe_spawn_chest()
 
     # Hatching timers.
     flock.tick_hatching(dt)
@@ -287,6 +300,21 @@ def update(dt):
             _next_basket_chime_at = t + interval
         else:
             _next_basket_chime_at = t + config.BASKET_CHIME_INTERVAL_FAR
+
+    # Chest chime — its own voice and its own timer, so chests and baskets
+    # never take turns sharing one.
+    if t >= _next_chest_chime_at:
+        nearest_c = chests.nearest_audible_chest()
+        if nearest_c:
+            if prefs.settings['enable_chest_chimes']:
+                sounds.fire_chest_chime(nearest_c)
+            d = math.hypot(nearest_c['x'] - state.player['x'], nearest_c['y'] - state.player['y'])
+            proximity = max(0.0, 1.0 - d / config.CHEST_AUDIBLE)
+            interval = (config.CHEST_CHIME_INTERVAL_FAR -
+                        (config.CHEST_CHIME_INTERVAL_FAR - config.CHEST_CHIME_INTERVAL_NEAR) * proximity)
+            _next_chest_chime_at = t + interval
+        else:
+            _next_chest_chime_at = t + config.CHEST_CHIME_INTERVAL_FAR
 
 
 def nearest_audible_egg():
@@ -347,6 +375,8 @@ def announce_status():
 
     parts.append(f'{len(state.held)} of {world.player_carry_cap()} held')
     parts.append(f'{world.discovered_count()} baskets found')
+    if world.chests_found():
+        parts.append(f'{world.chests_found()} chests found, each holding {world.chest_cap()}')
     if state.birds:
         parts.append(f'{len(state.birds)} birds in the park')
 

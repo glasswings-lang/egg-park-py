@@ -31,7 +31,8 @@ def hatch_into_your_bird(basket):
         'next_call_at': now_t + random.uniform(2.0, 4.0),
         'next_ambient_at': now_t + random.uniform(
             config.BIRD_AMBIENT_MIN_INTERVAL, config.BIRD_AMBIENT_MAX_INTERVAL),
-        'clutch_bonus': 0,
+        # A chest's egg gifts ride along with every bird it hatches.
+        'clutch_bonus': basket.get('clutch_bonus', 0),
         'lay_timer': prefs.settings['lay_time'],
     }
     state.birds.append(bird)
@@ -82,7 +83,7 @@ def tick_hatching(dt):
     # Basket eggs — same pattern. Disabling basket-hatching means deposited
     # eggs just sit there forever; the basket becomes a museum.
     if prefs.settings['enable_basket_hatching']:
-        for b in state.baskets:
+        for b in state.baskets + state.chests:
             for he in list(b['eggs']):
                 he['hatch_timer'] -= dt
                 if he['hatch_timer'] <= 0:

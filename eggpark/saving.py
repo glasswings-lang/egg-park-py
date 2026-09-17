@@ -49,6 +49,8 @@ def _park_to_dict():
         'held': [dict(h) for h in state.held],
         'eggs': [dict(e) for e in state.eggs],
         'baskets': [dict(b, eggs=[dict(e) for e in b['eggs']]) for b in state.baskets],
+        'chests': [dict(c, eggs=[dict(e) for e in c['eggs']]) for c in state.chests],
+        'progress': dict(state.progress),
         'birds': [dict(bird,
                        next_call_at=bird['next_call_at'] - t,
                        next_ambient_at=bird['next_ambient_at'] - t)
@@ -91,6 +93,11 @@ def load_park():
         new_eggs = [dict(e) for e in data['eggs']]
         new_baskets = [dict(b, eggs=[dict(e) for e in b['eggs']])
                        for b in data['baskets']]
+        # Parks saved before chests existed have neither; that's fine.
+        new_chests = [dict(c, eggs=[dict(e) for e in c['eggs']])
+                      for c in data.get('chests', [])]
+        new_progress = {'carry_bonus': int(data.get('progress', {}).get('carry_bonus', 0)),
+                        'storage_bonus': int(data.get('progress', {}).get('storage_bonus', 0))}
         new_birds = [dict(bird,
                           next_call_at=t + max(0.0, bird['next_call_at']),
                           next_ambient_at=t + max(0.0, bird['next_ambient_at']))
@@ -110,6 +117,8 @@ def load_park():
     state.baskets.clear()
     state.baskets.extend(new_baskets)
     state.birds.extend(new_birds)
+    state.chests.extend(new_chests)
+    state.progress.update(new_progress)
     world._last_seen_counts.update(found=world.discovered_count(), carry=world.player_carry_cap())
     world.log_counts('park loaded')
     return True

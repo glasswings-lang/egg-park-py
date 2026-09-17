@@ -22,6 +22,10 @@ def try_scan():
         d = math.hypot(b['x'] - state.player['x'], b['y'] - state.player['y'])
         if d <= config.SCAN_RANGE:
             items.append(('basket', d, b))
+    for c in state.chests:
+        d = math.hypot(c['x'] - state.player['x'], c['y'] - state.player['y'])
+        if d <= config.SCAN_RANGE:
+            items.append(('chest', d, c))
 
     if not items:
         stop_scan_guide()
@@ -49,6 +53,8 @@ def try_scan():
         delay = (dist / max_dist) * config.SCAN_DURATION
         if kind == 'egg':
             pyglet.clock.schedule_once(lambda dt, e=item: sounds.fire_scan_egg_ping(e), delay)
+        elif kind == 'chest':
+            pyglet.clock.schedule_once(lambda dt, c=item: sounds.fire_scan_chest_ping(c), delay)
         else:
             pyglet.clock.schedule_once(lambda dt, b=item: sounds.fire_scan_basket_ping(b), delay)
 
@@ -162,6 +168,11 @@ def _scan_guide_still_wanted(g, dist):
         # Collected, or hatched on the ground: it's no longer in the world.
         return g['target'] in state.eggs and dist > config.COLLECT_RADIUS
     target = g['target']
+    if g['kind'] == 'unfound chest':
+        return target in state.chests and not target['discovered']
+    if g['kind'] == 'chest':
+        return (target in state.chests and len(target['eggs']) < world.chest_cap()
+                and dist > config.CHEST_DEPOSIT_RADIUS)
     if g['kind'] == 'unfound basket':
         # Finding it is arriving: its discovery chime takes over from here.
         return target in state.baskets and not target['discovered']

@@ -9,8 +9,8 @@ Architecture:
 - This file only starts the game. The game lives in eggpark/, one file per
   part: config (fixed numbers), speech (screen reader + play log), state
   (what's in the park), prefs (settings), menu, sounds, soundtest, world
-  (eggs and baskets), scan (scanning and the guide), flock (hatching and
-  birds), game (window, keys, the per-frame update) and saving.
+  (eggs and baskets), chests, scan (scanning and the guide), flock (hatching
+  and birds), game (window, keys, the per-frame update) and saving.
   It was one 3000-line file until 2026-09-16.
 - pyglet for window + input + 3D positional audio (OpenAL Soft HRTF).
 - accessible_output2 for NVDA/JAWS/SAPI screen-reader speech.
@@ -29,7 +29,9 @@ Controls (game):
   Space           — scan (reveals nearby eggs + baskets via audible ping,
                     then a guide blip leads to the nearest egg)
   B               — guide to the nearest found basket with room
-  V               — guide to the nearest basket you haven't found yet
+  V / Shift+B     — guide to the nearest basket you haven't found yet
+  C               — guide to the nearest found chest with room
+  Shift+C         — guide to the nearest chest you haven't found yet
   F               — deposit held eggs at the basket you're standing on
   P               — speak status (heading, distances, counts, capacities)
   R               — reload sample bank (re-scan public/audio/samples)
