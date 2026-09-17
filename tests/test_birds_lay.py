@@ -169,6 +169,8 @@ def run_checks(G):
     check('laid eggs stay laid eggs after loading', len(laid()) == 5)
     G['CLUTCH_MIN'], G['CLUTCH_MAX'] = 1, 10
 
+    speech_log_event = G['log_event']
+
     print('ground hatching:')
     settings['enable_ground_hatching'] = True
     settings['hatch_time'] = 20.0
@@ -192,6 +194,45 @@ def run_checks(G):
     check('wild eggs that hatched away are replaced by new ones',
           len(wild_now) == 4 and not any(e in wild_before for e in wild_now))
     check('each flies off from where it lay', all(p is not None for p in flew))
+
+    print('a park where every egg runs out at the same instant:')
+    # Not hypothetical: a real save held 4,161 eggs each with exactly 180.0
+    # seconds left, because the timer only ticks while ground hatching is on
+    # and they had all been stored untouched. Turning the setting on would
+    # have hatched the lot in one frame.
+    settings['enable_ground_hatching'] = True
+    settings['hatch_time'] = 180.0
+    settings['lay_time'] = 900.0
+    fresh_park()
+    birds.clear()
+    eggs.clear()
+    flew.clear()
+    for i in range(4161):
+        eggs.append({'x': 300.0 + i * 0.1, 'y': 300.0, 'z': 0.0, 'freq_idx': 0,
+                     'hatch_timer': 180.0, 'laid': True})
+    player.update(x=0.0, y=0.0)
+    logged = []
+    G['log_event'] = logged.append
+    per_frame = []
+    before = len(eggs)
+    G['tick_hatching'](181.0)                  # everything is now overdue
+    per_frame.append(before - len(eggs))
+    frames_taken = 0
+    while eggs and frames_taken < 3000:
+        before = len(eggs)
+        G['tick_hatching'](1 / 60)
+        per_frame.append(before - len(eggs))
+        frames_taken += 1
+    cap = G['GROUND_HATCH_PER_FRAME']
+    check(f'no frame hatches more than {cap} (the most any frame did: {max(per_frame)})',
+          max(per_frame) <= cap)
+    check(f'all 4161 still leave, over {frames_taken} frames '
+          f'({frames_taken / 60:.1f} seconds)', not eggs and len(flew) == 4161)
+    hatch_lines = [line for line in logged if 'hatched on the ground' in line]
+    check(f'and the log gets {len(hatch_lines)} lines, not 4161', len(hatch_lines) < 500)
+    check('each line counts its own frame',
+          all('egg(s) hatched' in line for line in hatch_lines))
+    G['log_event'] = speech_log_event
 
     print('picking up keeps the countdown:')
     home = fresh_park()

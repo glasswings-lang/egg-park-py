@@ -146,6 +146,11 @@ SCAN_MAX_PINGS_PER_KIND = 12
 
 # Hatching
 HATCH_TIMER_INITIAL = 30.0
+# Ground hatching: the most eggs that may hatch and fly off in one frame.
+# At 60 frames a second that is up to 720 a second, so any believable backlog
+# clears in a few seconds while no single frame stalls. See flock.tick_hatching
+# for the park that made this necessary.
+GROUND_HATCH_PER_FRAME = 12
 
 # Birds laying eggs. A bird hatched in a basket lays a CLUTCH, several eggs at
 # once the way real birds do, every "Time before a bird lays" (a setting), for

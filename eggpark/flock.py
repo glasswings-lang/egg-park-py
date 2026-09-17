@@ -50,16 +50,41 @@ def tick_hatching(dt):
     # A wild egg that hatches away is replaced, so the wild supply stays what
     # it was. A laid egg is simply gone. No speech: with a big flock this
     # would never stop talking. You hear it fly off if it's near you.
+    # Only GROUND_HATCH_PER_FRAME leave in any one frame, and a frame that
+    # hatches several writes ONE log line for the lot.
+    #
+    # Eggs whose timers line up exactly do exist, and a park proved it: 4,161
+    # eggs, every one with 180.0 seconds left, because the timer only ticks
+    # while this setting is on and they had all been saved untouched. Turning
+    # it on would have hatched every one of them in a single frame — a stall,
+    # a wall of flyoffs, and 4,161 log lines. Trickling them out costs a few
+    # seconds of make-believe and nothing else: an egg that hatches a moment
+    # late is indistinguishable from one that was laid a moment later.
     if prefs.settings['enable_ground_hatching']:
-        for egg in list(state.eggs):
+        # Every egg's timer ticks, every frame, even during a backlog — only
+        # the LEAVING is rationed. Stopping early instead (once enough ready
+        # eggs were found) looked equivalent and wasn't: eggs further down the
+        # list then stopped counting down at all, so a park that was overdue
+        # in one lump drained at the rate its own timers allowed, which was
+        # no rate at all. A test of 4,161 eggs due at once caught it.
+        ready = []
+        for egg in state.eggs:
             egg['hatch_timer'] = egg.get('hatch_timer', prefs.settings['hatch_time']) - dt
-            if egg['hatch_timer'] > 0:
-                continue
+            if egg['hatch_timer'] <= 0:
+                ready.append(egg)
+        ready = ready[:config.GROUND_HATCH_PER_FRAME]
+        laid_gone = wild_gone = 0
+        for egg in ready:
             state.eggs.remove(egg)
-            if not egg.get('laid'):
+            if egg.get('laid'):
+                laid_gone += 1
+            else:
+                wild_gone += 1
                 state.eggs.append(world.spawn_egg_far_from_player())
             sounds.fire_wild_bird_flyoff(position=(egg['x'], egg['y'], egg['z']))
-            world.log_counts(f'{"a laid" if egg.get("laid") else "a wild"} egg hatched on the ground and flew off')
+        if ready:
+            world.log_counts(f'{len(ready)} egg(s) hatched on the ground and flew off '
+                             f'({laid_gone} laid, {wild_gone} wild and replaced)')
 
     # Held eggs — timer only advances if hand-hatching is enabled, so
     # turning the toggle off effectively freezes any held egg indefinitely.
