@@ -155,6 +155,7 @@ python tests/test_birds_lay.py      # birds lay eggs near home
 python tests/test_chests.py         # chests: gifts, capacity, C and Shift+C
 python tests/test_nets.py           # nets, scooping, basket and chest footsteps
 python tests/test_crash_safety.py   # a scan in a full park, and the crash log
+python tests/test_tally.py          # many events at once make one sound, not hundreds
 ```
 
 Plain Python, no pytest. The first two read the game's code as text rather
@@ -251,6 +252,7 @@ egg-park-py/
 │   ├── world.py       #   eggs and baskets: spawning, pickup, deposit
 │   ├── scan.py        #   scanning, B, and the scan guide
 │   ├── flock.py       #   hatching and birds
+│   ├── tally.py       #   repeated events counted, and reported once
 │   ├── chests.py      #   chests: gifts, finding, C and Shift+C
 │   ├── game.py        #   window, keys, per-frame update, status
 │   └── saving.py      #   saving and loading the park

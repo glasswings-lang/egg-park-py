@@ -188,8 +188,10 @@ def run_checks(G):
     frames(19)
     check('nothing hatches before the hatch time', len(laid()) == 3 and not flew)
     frames(2)
-    check(f'the uncollected clutch hatches away ({len(laid())} laid left, {len(flew)} flew off)',
-          not laid() and len(flew) == 7)
+    # Seven eggs came due together and you hear ONE flyoff, not seven: the
+    # hatch loop counts and tally reports. See eggpark/tally.py.
+    check(f'the uncollected clutch hatches away ({len(laid())} laid left, {len(flew)} flyoff heard)',
+          not laid() and len(flew) == 1)
     wild_now = [e for e in eggs if not e.get('laid')]
     check('wild eggs that hatched away are replaced by new ones',
           len(wild_now) == 4 and not any(e in wild_before for e in wild_now))
@@ -215,19 +217,29 @@ def run_checks(G):
     G['log_event'] = logged.append
     per_frame = []
     before = len(eggs)
+    clock = 1000.0                             # a plain clock for the flushes
+    G['forget_all']()
     G['tick_hatching'](181.0)                  # everything is now overdue
+    G['flush_all'](clock)
     per_frame.append(before - len(eggs))
     frames_taken = 0
     while eggs and frames_taken < 3000:
         before = len(eggs)
         G['tick_hatching'](1 / 60)
+        clock += 1 / 60
+        G['flush_all'](clock)
         per_frame.append(before - len(eggs))
         frames_taken += 1
     cap = G['GROUND_HATCH_PER_FRAME']
     check(f'no frame hatches more than {cap} (the most any frame did: {max(per_frame)})',
           max(per_frame) <= cap)
     check(f'all 4161 still leave, over {frames_taken} frames '
-          f'({frames_taken / 60:.1f} seconds)', not eggs and len(flew) == 4161)
+          f'({frames_taken / 60:.1f} seconds)', not eggs)
+    # The whole point: 4,161 eggs left the park and you heard a handful of
+    # flyoffs, roughly one every GROUND_FLYOFF gap, not 4,161 of them.
+    expected = frames_taken / 60 / G['GROUND_FLYOFF'].gap
+    check(f'and {len(flew)} flyoffs were heard, not 4161 (about {expected:.0f} expected)',
+          len(flew) <= expected + 2)
     hatch_lines = [line for line in logged if 'hatched on the ground' in line]
     check(f'and the log gets {len(hatch_lines)} lines, not 4161', len(hatch_lines) < 500)
     check('each line counts its own frame',

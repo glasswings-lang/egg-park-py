@@ -4,7 +4,7 @@ import math
 import random
 import time
 
-from eggpark import chests, config, prefs, scan, sounds, speech, state
+from eggpark import chests, config, prefs, scan, sounds, speech, state, tally
 
 # ============================================================================
 # Capacity helpers
@@ -204,6 +204,7 @@ def reset_world():
     state.player.update({'x': 0.0, 'y': 0.0, 'z': 0.0, 'yaw': 0.0})
     _last_seen_counts.update(found=0, carry=0)
     forget_hands_full()
+    tally.forget_all()
     log_counts('world reset for a new park')
     # A guide left over would lead toward a basket from the old park.
     scan.stop_scan_guide()

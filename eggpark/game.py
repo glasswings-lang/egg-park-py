@@ -6,7 +6,7 @@ import time
 import pyglet
 from pyglet.window import key
 
-from eggpark import chests, config, flock, menu, prefs, saving, scan, sounds, soundtest, speech, state, world
+from eggpark import chests, config, flock, menu, prefs, saving, scan, sounds, soundtest, speech, state, tally, world
 
 # ============================================================================
 # Window + input
@@ -263,6 +263,10 @@ def update(dt):
     saving.tick_autosave()
 
     t = now()
+
+    # Repeated events counted this frame get reported here, once each. See
+    # eggpark/tally.py: nothing in the world announces itself per egg.
+    tally.flush_all(t)
 
     scan.tick_scan_guide(t)
 

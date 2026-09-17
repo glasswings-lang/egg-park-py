@@ -1007,9 +1007,14 @@ def fire_scan_guide(position, *, volume, pitch):
 
 
 def fire_hatch_in_basket(basket):
+    fire_hatch_in_basket_at(position=(basket['x'], basket['y'], basket['z']))
+
+
+def fire_hatch_in_basket_at(position):
+    """The same cue from a bare position. The hatch loop counts a whole
+    frame's hatchings and reports them once, from one place — see tally."""
     src = pick_source('hatch-in-basket', fallback=_hatch_in_basket_source)
-    _play(src, position=(basket['x'], basket['y'], basket['z']), volume=0.7,
-          category='hatch-in-basket')
+    _play(src, position=position, volume=0.7, category='hatch-in-basket')
 
 
 def fire_chest_chime(chest):

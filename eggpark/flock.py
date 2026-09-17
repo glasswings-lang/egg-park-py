@@ -4,20 +4,40 @@ import math
 import random
 import time
 
-from eggpark import config, prefs, sounds, speech, state, world
+from eggpark import config, prefs, sounds, speech, state, tally, world
 
 # ============================================================================
 # Hatching + birds
 # ============================================================================
 
 def hatch_into_wild_bird():
-    """A held egg ran out — bird flies off, not yours."""
-    sounds.fire_wild_bird_flyoff()
-    speech.say('An egg in your hand hatched. The bird flew off.')
+    """A held egg ran out — bird flies off, not yours. Counted, not announced:
+    a handful of eggs can come due together and that was a line each."""
+    tally.EGG_LOST.add()
+
+
+# One event, one sound — see eggpark/tally.py for the rule and why. Nothing
+# in here announces anything per egg: it counts, and tally reports the count
+# once a frame at most.
+
+
+def make_your_bird(basket):
+    """The bird itself, with no sound and nothing said. The announcing is the
+    caller's job, because a whole basket can hatch in one frame."""
+    return _new_bird(basket)
 
 
 def hatch_into_your_bird(basket):
-    """A basketed egg ran out — bird is yours, joins the wandering set."""
+    """A basketed egg ran out — bird is yours, joins the wandering set.
+
+    Announces on its own: this is the one-at-a-time path, used when something
+    other than the hatch loop hatches a single egg."""
+    _new_bird(basket)
+    sounds.fire_hatch_in_basket(basket)
+    speech.say(f'A bird hatched. {len(state.birds)} birds in the park.')
+
+
+def _new_bird(basket):
     now_t = time.monotonic()
     bird = {
         'x': basket['x'] + random.uniform(-1, 1),
@@ -36,8 +56,7 @@ def hatch_into_your_bird(basket):
         'lay_timer': prefs.settings['lay_time'],
     }
     state.birds.append(bird)
-    sounds.fire_hatch_in_basket(basket)
-    speech.say(f'A bird hatched. {len(state.birds)} birds in the park.')
+    return bird
 
 
 def tick_hatching(dt):
@@ -81,7 +100,7 @@ def tick_hatching(dt):
             else:
                 wild_gone += 1
                 state.eggs.append(world.spawn_egg_far_from_player())
-            sounds.fire_wild_bird_flyoff(position=(egg['x'], egg['y'], egg['z']))
+            tally.GROUND_FLYOFF.add((egg['x'], egg['y'], egg['z']))
         if ready:
             world.log_counts(f'{len(ready)} egg(s) hatched on the ground and flew off '
                              f'({laid_gone} laid, {wild_gone} wild and replaced)')
@@ -102,7 +121,7 @@ def tick_hatching(dt):
                 h['next_warning'] -= dt
                 if h['next_warning'] <= 0:
                     if prefs.settings['enable_egg_warnings']:
-                        sounds.fire_egg_warning()
+                        tally.EGG_WARNING.add()
                     h['next_warning'] = config.WARNING_INTERVAL
 
     # Basket eggs — same pattern. Disabling basket-hatching means deposited
@@ -113,7 +132,8 @@ def tick_hatching(dt):
                 he['hatch_timer'] -= dt
                 if he['hatch_timer'] <= 0:
                     b['eggs'].remove(he)
-                    hatch_into_your_bird(b)
+                    make_your_bird(b)
+                    tally.BIRD_HATCHED.add((b['x'], b['y'], b['z']))
                     continue
                 # Same warning, but positional at the basket so the player
                 # can hear which basket is about to pop. Emotionally this
@@ -123,7 +143,7 @@ def tick_hatching(dt):
                     he['next_warning'] = he.get('next_warning', 0.0) - dt
                     if he['next_warning'] <= 0:
                         if prefs.settings['enable_egg_warnings']:
-                            sounds.fire_egg_warning(position=(b['x'], b['y'], b['z']))
+                            tally.EGG_WARNING.add((b['x'], b['y'], b['z']))
                         he['next_warning'] = config.WARNING_INTERVAL
 
 
