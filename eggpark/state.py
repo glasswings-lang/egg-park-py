@@ -37,8 +37,9 @@ held = []
 # clutch_bonus}. None at the start; they appear as you explore.
 chests = []
 
-# What chest gifts have added so far, for the whole park.
-progress = {'carry_bonus': 0, 'storage_bonus': 0}
+# What chest gifts have added so far, for the whole park. `nets` is how many
+# nets chests have given you: each one widens how far away you pick eggs up.
+progress = {'carry_bonus': 0, 'storage_bonus': 0, 'nets': 0}
 
 # Hatched birds wandering the world. Each: {x, y, z, freq_idx, home_x,
 # home_y, wander_angle, next_call_at}.

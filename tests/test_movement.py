@@ -29,7 +29,7 @@ def run_checks(G):
 
     print('footsteps are low-passed:')
     raw, sr = samples(G['_noise_burst'](0.12, attack=0.005, decay=0.05, release=0.06))
-    for name in ('_footstep_source', '_footstep_basket_source'):
+    for name in ('_footstep_source', '_footstep_basket_source', '_footstep_chest_source'):
         x, sr = samples(G[name])
         hiss_before, hiss_now = share_above(raw, sr, 8000), share_above(x, sr, 8000)
         check(f'{name}: energy above 8 kHz {hiss_before:.0%} before, {hiss_now:.1%} now',

@@ -147,6 +147,7 @@ python tests/test_park_save.py      # the park survives closing the game
 python tests/test_egg_spread.py     # eggs spread around your baskets, no drift
 python tests/test_birds_lay.py      # birds lay eggs near home
 python tests/test_chests.py         # chests: gifts, capacity, C and Shift+C
+python tests/test_nets.py           # nets, scooping, basket and chest footsteps
 ```
 
 Plain Python, no pytest. The first two read the game's code as text rather

@@ -20,6 +20,13 @@ def player_carry_cap():
             + state.progress['carry_bonus'])
 
 
+def collect_radius():
+    """How far away you pick an egg up: COLLECT_RADIUS, plus NET_REACH_EACH per
+    net chests have given you, up to NET_REACH_MAX."""
+    return min(config.NET_REACH_MAX,
+               config.COLLECT_RADIUS + config.NET_REACH_EACH * state.progress['nets'])
+
+
 def chests_found():
     return sum(1 for c in state.chests if c['discovered'])
 
@@ -192,7 +199,7 @@ def reset_world():
     state.baskets.clear()
     state.baskets.extend(dict(b, eggs=[]) for b in state.INITIAL_BASKETS)
     state.chests.clear()
-    state.progress.update(carry_bonus=0, storage_bonus=0)
+    state.progress.update(carry_bonus=0, storage_bonus=0, nets=0)
     state.player.update({'x': 0.0, 'y': 0.0, 'z': 0.0, 'yaw': 0.0})
     _last_seen_counts.update(found=0, carry=0)
     log_counts('world reset for a new park')
@@ -224,32 +231,33 @@ def initial_spawn():
 
 
 def try_collect_eggs():
-    """Auto-collect any egg within COLLECT_RADIUS, respecting carry cap."""
+    """Pick up every egg within collect_radius(), nearest first, up to carry cap.
+
+    With no nets that radius is 2 m and it's one egg at a time, as it always
+    was. Nets widen it, and then everything in reach comes up in one go, with
+    one sound and one spoken line rather than a burst of each.
+    """
     if not prefs.settings['enable_pickup']:
         return
-    for egg in list(state.eggs):
-        dx = egg['x'] - state.player['x']
-        dy = egg['y'] - state.player['y']
-        if math.hypot(dx, dy) > config.COLLECT_RADIUS:
+    reach = collect_radius()
+    in_reach = []
+    for egg in state.eggs:
+        d = math.hypot(egg['x'] - state.player['x'], egg['y'] - state.player['y'])
+        if d > reach:
             # Stepped away: the next time you reach it, it may tell you again.
             egg.pop('refused', None)
-            continue
+        else:
+            in_reach.append((d, egg))
+    if not in_reach:
+        return
+    in_reach.sort(key=lambda pair: pair[0])
+
+    collected = 0
+    left_behind = []
+    for _d, egg in in_reach:
         if len(state.held) >= player_carry_cap():
-            # Once per visit. This runs every frame, and it used to refuse
-            # every frame: a play log caught 465 "Hands full" sounds and
-            # spoken lines in eight seconds of standing on one egg.
-            if not egg.get('refused'):
-                egg['refused'] = True
-                log_counts('egg refused, hands full')
-                sounds.fire_refuse_sound()
-                speech.say(f'Hands full. {len(state.held)} eggs held.')
-            # Don't dequeue — egg stays so the player can come back after
-            # depositing.
-            return
-        # Collect: move this egg's hatch timer into hand.
-        # next_warning is a per-egg countdown to the next warning chirp;
-        # it only matters once hatch_timer drops below WARNING_WINDOW.
-        #
+            left_behind.append(egg)
+            continue
         # With ground hatching on, the egg has been counting down where it
         # lay, and it keeps what it has left: picking one up at the last
         # second must not wind it back to full.
@@ -257,20 +265,42 @@ def try_collect_eggs():
         # With it off, eggs on the ground never tick, so the clock genuinely
         # starts when you lift it, and reading the setting here means the
         # slider takes effect on the very next egg you pick up.
+        #
+        # next_warning is a per-egg countdown to the next warning chirp;
+        # it only matters once hatch_timer drops below WARNING_WINDOW.
         if prefs.settings['enable_ground_hatching']:
             timer = egg.get('hatch_timer', prefs.settings['hatch_time'])
         else:
             timer = prefs.settings['hatch_time']
         state.held.append({'hatch_timer': timer, 'next_warning': 0.0})
-        sounds.fire_collect_sound()
-        speech.say(f'Egg collected. {len(state.held)} of {player_carry_cap()} held.')
         state.eggs.remove(egg)
         if not egg.get('laid'):
             # Only wild eggs come back. A laid egg was a bird's gift, not
             # part of the wild supply, so taking it doesn't summon another.
             state.eggs.append(spawn_egg_far_from_player())
+        collected += 1
         log_counts('egg collected')
-        return
+
+    # Hands full: said once per visit. This runs every frame, and it used to
+    # refuse every frame: a play log caught 465 "Hands full" sounds and spoken
+    # lines in eight seconds of standing on one egg. Eggs stay put so you can
+    # come back after depositing.
+    new_refusals = [e for e in left_behind if not e.get('refused')]
+    for egg in left_behind:
+        egg['refused'] = True
+
+    held = f'{len(state.held)} of {player_carry_cap()} held.'
+    if collected:
+        sounds.fire_collect_sound()
+        line = ('Egg collected. ' if collected == 1 else f'Scooped {collected} eggs. ') + held
+        if new_refusals:
+            line += ' Hands full.'
+            log_counts('egg refused, hands full')
+        speech.say(line)
+    elif new_refusals:
+        log_counts('egg refused, hands full')
+        sounds.fire_refuse_sound()
+        speech.say(f'Hands full. {len(state.held)} eggs held.')
 
 
 # ============================================================================

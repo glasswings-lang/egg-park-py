@@ -96,8 +96,9 @@ def load_park():
         # Parks saved before chests existed have neither; that's fine.
         new_chests = [dict(c, eggs=[dict(e) for e in c['eggs']])
                       for c in data.get('chests', [])]
-        new_progress = {'carry_bonus': int(data.get('progress', {}).get('carry_bonus', 0)),
-                        'storage_bonus': int(data.get('progress', {}).get('storage_bonus', 0))}
+        # Parks saved before nets existed have none.
+        new_progress = {k: int(data.get('progress', {}).get(k, 0))
+                        for k in ('carry_bonus', 'storage_bonus', 'nets')}
         new_birds = [dict(bird,
                           next_call_at=t + max(0.0, bird['next_call_at']),
                           next_ambient_at=t + max(0.0, bird['next_ambient_at']))

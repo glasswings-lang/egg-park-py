@@ -36,6 +36,16 @@ def roll_gifts():
             for _ in range(config.CHEST_GIFT_SLOTS)]
 
 
+def roll_net():
+    """True if this chest holds a net. Rolled apart from the three slots.
+
+    Never once your reach is at NET_REACH_MAX: a net that does nothing is a
+    gift that isn't one, and hearing "and a net" would suggest it did."""
+    if world.collect_radius() >= config.NET_REACH_MAX:
+        return False
+    return random.random() < config.NET_CHANCE
+
+
 def gift_totals(gifts):
     return {kind: sum(slot.get(kind, 0) for slot in gifts) for kind in GIFT_KINDS}
 
@@ -116,10 +126,15 @@ def try_discover_chest():
         state.progress['carry_bonus'] += totals['carry']
         state.progress['storage_bonus'] += totals['storage']
         c['clutch_bonus'] = totals['eggs']
-        world.log_counts(f'chest found, gifts {c["gifts"]}')
+        c['net'] = roll_net()
+        net_line = ''
+        if c['net']:
+            state.progress['nets'] += 1
+            net_line = f'And a net. You pick up eggs from {world.collect_radius():g} metres. '
+        world.log_counts(f'chest found, gifts {c["gifts"]}, net {c["net"]}')
         sounds.fire_chest_discover(c)
         speech.say(
-            f'Chest found. {gift_speech(totals)} '
+            f'Chest found. {gift_speech(totals)} {net_line}'
             f'Carry capacity {world.player_carry_cap()}. '
             f'Basket capacity {world.basket_cap()}. Chest capacity {world.chest_cap()}.')
         return

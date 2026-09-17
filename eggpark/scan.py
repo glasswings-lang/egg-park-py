@@ -166,7 +166,7 @@ def _scan_guide_still_wanted(g, dist):
         return False
     if g['kind'] == 'egg':
         # Collected, or hatched on the ground: it's no longer in the world.
-        return g['target'] in state.eggs and dist > config.COLLECT_RADIUS
+        return g['target'] in state.eggs and dist > world.collect_radius()
     target = g['target']
     if g['kind'] == 'unfound chest':
         return target in state.chests and not target['discovered']

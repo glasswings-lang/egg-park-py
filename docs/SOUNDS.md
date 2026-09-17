@@ -449,6 +449,21 @@ you like; the engine plays them at the right positions.
   - `footstep-basket-2.wav`
   - `footstep-basket-3.wav`
 
+### `footstep-chest` — 3 variants
+- **Trigger**: Same as `footstep`, but fires instead of it while you are
+  stood within depositing range of a chest (5 m). Like the basket step, it
+  changes at exactly the point **F** starts working.
+- **Spatial**: no (plays at listener — still your own feet).
+- **Duration**: 0.15–0.30 s.
+- **Character**: A heavier, hollower knock than the basket: a boot on a
+  wooden lid. The built-in one rings at D4, a little under 300 Hz below the
+  basket step's D5. It must never be mistaken for either the ground or a
+  basket.
+- **Files** (3):
+  - `footstep-chest-1.wav`
+  - `footstep-chest-2.wav`
+  - `footstep-chest-3.wav`
+
 ### `egg-warning` — 2 variants
 - **Trigger**: Fires once per second on any held or basketed egg whose
   hatch timer is in its last 5 seconds. Same sample plays from the

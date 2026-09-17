@@ -8,7 +8,7 @@ import random
 import pyglet
 from pyglet.media import synthesis
 
-from eggpark import config, prefs, speech, state, world
+from eggpark import chests, config, prefs, speech, state, world
 
 # ============================================================================
 # Synth source factories (all placeholders — replace with sample banks)
@@ -308,14 +308,47 @@ def _lowpassed_noise_burst(duration, cutoff, attack, decay, release):
 _footstep_source = _lowpassed_noise_burst(
     0.12, FOOTSTEP_LOWPASS_HZ, attack=0.005, decay=0.05, release=0.06)
 
-# Standing on a basket. Longer and softer than open ground — a shorter,
-# duller burst reads as a step onto something that gives, rather than onto
-# packed earth. It tells you you're ON the basket, which the chime can't:
-# the chime is loudest nearby but never says "here", and standing exactly
-# on the deposit spot is the one thing you actually need to know before
-# pressing F.
-_footstep_basket_source = _lowpassed_noise_burst(
-    0.18, FOOTSTEP_LOWPASS_HZ, attack=0.01, decay=0.09, release=0.08)
+# Standing on a basket or a chest. These tell you you're ON it, which the
+# chime can't: the chime is loudest nearby but never says "here", and
+# standing on the deposit spot is the one thing you need to know before F.
+#
+# The basket step used to be the ground step made 60 ms longer, and it could
+# not be heard apart from the ground. It was reported as sounding like
+# generic terrain, which it very nearly was. Now each is a KNOCK: a muffled
+# scuff with a short pitched ring inside it, so the surface is hollow rather
+# than earth. Basket rings at D5, chest a little under 300 Hz lower at D4
+# (the drop that was asked for), duller and longer, like a heavier lid. Both
+# D, so neither is out of key with the park.
+FOOTSTEP_BASKET_KNOCK_HZ = 587.33   # D5
+FOOTSTEP_CHEST_KNOCK_HZ = 293.66    # D4
+
+
+def _knock_generator(tone_hz, cutoff, ring, sample_rate):
+    """Low-passed noise with a decaying sine ringing inside it."""
+    noise = _lowpassed_noise_generator(cutoff, sample_rate)
+    step = 2.0 * math.pi * tone_hz / sample_rate
+    i = 0
+    while True:
+        tone = math.sin(i * step) * math.exp(-i / (ring * sample_rate))
+        yield max(-1.0, min(1.0, 0.45 * next(noise) + 0.55 * tone))
+        i += 1
+
+
+def _knock_burst(tone_hz, cutoff, ring, duration, attack, decay, release):
+    return pyglet.media.StaticSource(synthesis.SynthesisSource(
+        _knock_generator(tone_hz, cutoff, ring, 44100), duration, 44100,
+        envelope=synthesis.ADSREnvelope(
+            attack=attack, decay=decay, release=release, sustain_amplitude=0.0,
+        ),
+    ))
+
+
+_footstep_basket_source = _knock_burst(
+    FOOTSTEP_BASKET_KNOCK_HZ, 2500.0, ring=0.04, duration=0.16,
+    attack=0.004, decay=0.08, release=0.07)
+_footstep_chest_source = _knock_burst(
+    FOOTSTEP_CHEST_KNOCK_HZ, 1500.0, ring=0.07, duration=0.22,
+    attack=0.004, decay=0.11, release=0.10)
 
 # Egg warning — short distressed-coo placeholder (sine in mid-octave).
 # Egg warning — the only alarm in the game. It means you are about to lose
@@ -467,7 +500,7 @@ _SAMPLE_CATEGORIES = (
     'egg-collect', 'refuse', 'basket-discover', 'basket-deposit',
     'basket-full', 'hatch-in-basket', 'egg-laid', 'wild-bird-flyoff',
     'chest-chime', 'chest-chime-found', 'chest-discover', 'scan-chest-ping',
-    'footstep', 'footstep-basket',
+    'footstep', 'footstep-basket', 'footstep-chest',
     'egg-warning', 'scan-start', 'bird-ambient', 'fumble',
     'boot', 'menu-open', 'menu-close', 'ambience', 'origin',
 )
@@ -1017,9 +1050,13 @@ def fire_footstep():
     # change and then being told 'not standing on a basket' would be worse
     # than no cue at all.
     #
-    # One volume category for both surfaces: "Volume: footsteps" has to mean
+    # Chests the same, on CHEST_DEPOSIT_RADIUS. Checked first, as F does.
+    #
+    # One volume category for every surface: "Volume: footsteps" has to mean
     # all of them. Only the sample category and the synth fallback change.
-    if world.current_basket() is not None:
+    if chests.current_chest() is not None:
+        src = pick_source('footstep-chest', fallback=_footstep_chest_source)
+    elif world.current_basket() is not None:
         src = pick_source('footstep-basket', fallback=_footstep_basket_source)
     else:
         src = pick_source('footstep', fallback=_footstep_source)
@@ -1090,6 +1127,9 @@ SOUND_CATALOGUE = [
     ('footstep-basket', 'Footstep on a basket',
      'Your feet while stood ON a basket. This is how you know F will work.',
      lambda: _footstep_basket_source),
+    ('footstep-chest', 'Footstep on a chest',
+     'Your feet while stood ON a chest. A lower, heavier knock than a basket.',
+     lambda: _footstep_chest_source),
     ('egg-collect', 'Egg collected',
      'You picked up an egg. Its hatch timer is now running.',
      lambda: _collect_source),

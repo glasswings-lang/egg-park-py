@@ -377,6 +377,9 @@ def announce_status():
     parts.append(f'{world.discovered_count()} baskets found')
     if world.chests_found():
         parts.append(f'{world.chests_found()} chests found, each holding {world.chest_cap()}')
+    if state.progress['nets']:
+        n = state.progress['nets']
+        parts.append(f'{n} net{"s" if n != 1 else ""}, picking up eggs from {world.collect_radius():g} metres')
     if state.birds:
         parts.append(f'{len(state.birds)} birds in the park')
 

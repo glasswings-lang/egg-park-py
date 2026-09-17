@@ -114,6 +114,17 @@ CHEST_GIFT_SLOTS = 3
 CHEST_GIFT_MIN = 1
 CHEST_GIFT_MAX = 5
 
+# Nets. Separate from the three gift slots: each chest, when found, may also
+# hold a net. Every net you own widens how far away you can pick eggs up, and
+# everything in reach comes up at once, so with a few nets you can walk past a
+# clutch and scoop the lot instead of stepping onto each egg.
+#
+# Capped below EGG_MIN_FROM_PLAYER (20): a replacement egg is never placed
+# closer than that, so a net can never snatch the egg that just appeared.
+NET_CHANCE = 0.5           # chance a chest holds a net
+NET_REACH_EACH = 2.0       # metres of reach each net adds to COLLECT_RADIUS
+NET_REACH_MAX = 16.0       # reach never goes past this, however many nets
+
 # Capacity
 CARRY_BUMP_EVERY = 3   # player carry cap grows by 1 every N basket discoveries
 CARRY_START = 1        # starting carry capacity (also grows from there)

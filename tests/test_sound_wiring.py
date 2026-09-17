@@ -36,6 +36,7 @@ SOUNDS_MD = os.path.join(ROOT, 'docs', 'SOUNDS.md')
 SHARES_VOLUME_WITH = {
     'basket-chime-found': 'basket-chime',
     'footstep-basket': 'footstep',
+    'footstep-chest': 'footstep',
     'chest-chime-found': 'chest-chime',
 }
 

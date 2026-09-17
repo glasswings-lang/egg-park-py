@@ -38,7 +38,7 @@ def run_checks(G):
     print('a new park:')
     G['start_game']()
     check('starts with no chests and no gift bonuses',
-          not chests and state['progress'] == {'carry_bonus': 0, 'storage_bonus': 0})
+          not chests and state['progress'] == {'carry_bonus': 0, 'storage_bonus': 0, 'nets': 0})
     frames(0.1)
     check(f'one unfound chest appears within earshot ({len(chests)})', len(chests) == 1)
     c = chests[0]
@@ -82,7 +82,8 @@ def run_checks(G):
     check(f'with 2 baskets found, a chest holds {chest0}: 5 plus 2 per basket',
           chest0 == 5 + 2 * 2)
     c = chest_at(100.0, 0.0)
-    G['roll_gifts'] = lambda: [{'carry': 3}, {'storage': 2, 'eggs': 4}, {'eggs': 1, 'carry': 1, 'storage': 5}]
+    G['roll_net'] = lambda: False          # nets: see test_nets.py
+    G['roll_gifts'] = lambda: [{'carry': 3},{'storage': 2, 'eggs': 4}, {'eggs': 1, 'carry': 1, 'storage': 5}]
     P.update(x=100.0 - 7.2, y=0.0)
     G['try_discover_chest']()
     check('7.2 m away: not found yet', not c['discovered'])
