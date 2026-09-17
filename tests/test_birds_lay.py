@@ -286,6 +286,62 @@ def run_checks(G):
     check('from your hands: at you, full volume', played and played[-1]['position'] is None
           and played[-1]['volume'] == 0.5)
     settings['hatch_time'] = 30.0
+
+    print('a bird leaving sounds like wings, not compressed air:')
+    # It was 1.5 s of raw white noise, and it was reported as sounding like a
+    # can of compressed air. Two faults: all the energy in the treble, where
+    # noise is hiss rather than moved air, and one continuous wash where a
+    # bird taking off is separate beats.
+    import numpy as np
+
+    def audio(src):
+        d = src.get_queue_source().get_audio_data(10 ** 7)
+        return (np.frombuffer(d.data, dtype=np.int16).astype(float) / 32767,
+                src.audio_format.sample_rate)
+
+    def share_above(x, sr, hz):
+        p = np.abs(np.fft.rfft(x)) ** 2
+        f = np.fft.rfftfreq(len(x), 1 / sr)
+        return p[f > hz].sum() / p.sum()
+
+    wings, sr = audio(G['_wild_bird_flyoff_source'])
+    hiss, _ = audio(G['_noise_burst'](1.5, attack=0.05, decay=1.3, release=0.15))
+    above8k, above2k = share_above(wings, sr, 8000), share_above(wings, sr, 2000)
+    check(f'no hiss: {above8k:.1%} above 8 kHz, against {share_above(hiss, sr, 8000):.0%} '
+          f'for the noise burst it replaced', above8k < 0.01)
+    check(f'and most of it is under 2 kHz ({1 - above2k:.0%})', above2k < 0.15)
+    # Cut lower than the footsteps and higher than the ambience bed, on
+    # purpose: it has to move air without becoming either a step or weather.
+    check(f'cut between the ambience bed and the footsteps '
+          f'({G["FLAP_CUTOFF_HZ"]:g} Hz, bed 200, steps {G["FOOTSTEP_LOWPASS_HZ"]:g})',
+          200 < G['FLAP_CUTOFF_HZ'] < G['FOOTSTEP_LOWPASS_HZ'])
+    check(f'never clips (peak {np.abs(wings).max():.2f})', np.abs(wings).max() < 0.999)
+    quieter = 20 * np.log10(np.sqrt((wings ** 2).mean()) / np.sqrt((hiss ** 2).mean()))
+    check(f'and it is quieter than the hiss was ({quieter:+.0f} dB)', quieter < -5)
+
+    # Separate beats, spreading out and fading as the bird gets away.
+    env = np.abs(wings)
+    win = int(0.02 * sr)
+    smooth = np.convolve(env, np.ones(win) / win, mode='same')
+    floor = smooth.max() * 0.06
+    beats = []
+    for i in range(1, len(smooth) - 1):
+        if smooth[i] > floor and smooth[i] >= smooth[i - 1] and smooth[i] > smooth[i + 1]:
+            # 0.06 s: under the closest real beat spacing (0.085) but wide
+            # enough that noise inside one shove is not counted twice.
+            if not beats or ((i - beats[-1]) > int(0.06 * sr)
+                             and smooth[beats[-1]:i].min() < smooth[i] * 0.6):
+                beats.append(i)
+    times = [b / sr for b in beats]
+    check(f'it is made of {len(times)} separate wingbeats, not one wash',
+          8 <= len(times) <= 20)
+    gaps = [b - a for a, b in zip(times, times[1:])]
+    check(f'they start quick and spread out (first {gaps[0]:.2f}s, last {gaps[-1]:.2f}s)',
+          gaps[-1] > gaps[0])
+    thirds = [np.sqrt((wings[i * len(wings) // 3:(i + 1) * len(wings) // 3] ** 2).mean())
+              for i in range(3)]
+    check(f'and it fades as the bird leaves ({", ".join(f"{t:.3f}" for t in thirds)})',
+          thirds[0] > thirds[1] > thirds[2])
     settings['enable_ground_hatching'] = False
 
     print('you only hear birds near you:')

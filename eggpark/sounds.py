@@ -266,8 +266,68 @@ _chest_chime_found_source = _bell_source([(0.0, CHEST_BELL_HZ, 4.5, 0.45)], 1.4)
 _chest_discover_source = _bell_source(
     [(0.0, CHEST_BELL_HZ, 3.5, 0.5), (0.22, CHEST_BELL_HZ * 1.5, 3.5, 0.6)], 2.2)
 _scan_chest_ping_source = _bell_source([(0.0, CHEST_BELL_HZ, 2.5, 0.15)], 0.5)
-_wild_bird_flyoff_source = _noise_burst(config.WILD_BIRD_DISPERSAL,
-                                         attack=0.05, decay=config.WILD_BIRD_DISPERSAL - 0.2, release=0.15)
+# A bird leaving: a rush of wings, not a hiss.
+#
+# It was 1.5 seconds of raw white noise with a slow decay, which is the exact
+# recipe for a can of compressed air, and it was reported as sounding like
+# one. Two things were wrong. All that energy sat up in the treble, where
+# noise reads as hiss rather than as air being moved — the same mistake the
+# footsteps had, fixed the same way, with a low-pass. And it was ONE
+# continuous sound, when a bird taking off is a series of separate beats.
+#
+# So: a handful of wingbeats. Each is a short low-passed noise pulse with a
+# fast attack, which is what a wing shoving air sounds like. They start quick
+# and slow down as the bird gets away, and they fade as it goes, so the sound
+# carries its own direction of travel — leaving, not arriving.
+#
+# TUNE BY EAR. FLAP_CUTOFF_HZ is how airy against how muffled (higher is
+# hissier; this is the number that was effectively infinite before).
+# FLAP_GAP_FIRST/LAST are the beat spacing at the start and end — closer
+# together is a more panicked bird.
+FLAP_CUTOFF_HZ = 1100.0
+FLAP_GAP_FIRST = 0.085     # seconds between the first beats
+FLAP_GAP_LAST = 0.20       # ...and between the last ones, as it gets away
+FLAP_ATTACK = 0.006        # the shove: fast, or it is a swell, not a beat
+FLAP_TAU = 0.055           # how quickly each beat dies away
+
+
+def _flap_times(duration):
+    """When each wingbeat lands: quick at first, spreading out as it leaves."""
+    times, t, gap = [], 0.0, FLAP_GAP_FIRST
+    while t < duration:
+        times.append(t)
+        t += gap
+        # Ease from the first spacing toward the last across the whole flight.
+        gap = FLAP_GAP_FIRST + (FLAP_GAP_LAST - FLAP_GAP_FIRST) * min(1.0, t / duration)
+    return times
+
+
+def _wingbeat_generator(duration, sample_rate=44100):
+    noise = _lowpassed_noise_generator(FLAP_CUTOFF_HZ, sample_rate)
+    times = _flap_times(duration)
+    i = 0
+    while True:
+        t = i / sample_rate
+        # The loudest beat wins, rather than summing: overlapping tails
+        # otherwise pile up into exactly the continuous wash this replaced.
+        env = 0.0
+        for start in times:
+            if start > t:
+                break
+            age = t - start
+            shape = (age / FLAP_ATTACK if age < FLAP_ATTACK
+                     else math.exp(-(age - FLAP_ATTACK) / FLAP_TAU))
+            # Each beat quieter than the last: the bird is getting away.
+            env = max(env, shape * (1.0 - 0.75 * min(1.0, start / duration)))
+        # x1.9: with the hiss filtered out and each beat decaying, the sound
+        # measured far quieter than the noise burst it replaced. This puts it
+        # back to a comparable loudness without clipping (peak ~0.6).
+        yield max(-1.0, min(1.0, next(noise) * env * 1.9))
+        i += 1
+
+
+# The source itself is built further down, once the low-pass this leans on
+# exists — it was written for the footsteps and they come after this.
 
 # Footstep — short noise burst as the synth placeholder. Quiet by design;
 # it fires every meter and shouldn't fatigue. Real samples will replace it.
@@ -349,6 +409,17 @@ _footstep_basket_source = _knock_burst(
 _footstep_chest_source = _knock_burst(
     FOOTSTEP_CHEST_KNOCK_HZ, 1500.0, ring=0.07, duration=0.22,
     attack=0.004, decay=0.11, release=0.10)
+
+# The bird leaving, built here because it uses the low-pass above. Flat
+# envelope on purpose: each wingbeat's shape, and the fade as the bird gets
+# away, come from _wingbeat_generator. A long ADSR decay on top of that
+# squashed the later beats to nothing.
+_wild_bird_flyoff_source = pyglet.media.StaticSource(synthesis.SynthesisSource(
+    _wingbeat_generator(config.WILD_BIRD_DISPERSAL), config.WILD_BIRD_DISPERSAL, 44100,
+    envelope=synthesis.ADSREnvelope(
+        attack=0.004, decay=0.01, release=0.08, sustain_amplitude=1.0,
+    ),
+))
 
 # Egg warning — short distressed-coo placeholder (sine in mid-octave).
 # Egg warning — the only alarm in the game. It means you are about to lose
