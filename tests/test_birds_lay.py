@@ -17,8 +17,12 @@ def run_checks(G):
     G['write_sounds_template'] = lambda *a, **k: False
     G['say'] = lambda text: None
     laid_sounds = []
+    flyoff = G['fire_wild_bird_flyoff']
     G['fire_egg_laid'] = lambda egg: laid_sounds.append(egg)
     settings, eggs, birds, player = G['settings'], G['eggs'], G['birds'], G['player']
+    # Most checks here count eggs over minutes; eggs hatching away on the
+    # ground mid-count would muddle them. Ground hatching gets its own section.
+    settings['enable_ground_hatching'] = False
 
     def fresh_park():
         G['start_game']()
@@ -34,22 +38,45 @@ def run_checks(G):
     def laid():
         return [e for e in eggs if e.get('laid')]
 
-    print('a plain bird:')
+    def clutches():
+        return len(laid_sounds)
+
+    # Fixed clutch size for the timing checks, so counts are exact.
+    G['CLUTCH_MIN'] = G['CLUTCH_MAX'] = 3
+
+    print('a plain bird lays clutches, again and again:')
     settings['lay_time'] = 30.0
     home = fresh_park()
+    laid_sounds.clear()
     G['hatch_into_your_bird'](home)
     bird = birds[0]
-    check('is born with one egg to lay', bird['eggs_to_lay'] == 1)
+    check('is born with no clutch bonus', bird['clutch_bonus'] == 0)
     frames(29)
     check('has not laid before the lay time', not laid())
     frames(2)
-    check(f'lays after the lay time ({len(laid())} egg)', len(laid()) == 1)
-    egg = laid()[0]
-    d = math.hypot(egg['x'] - home['x'], egg['y'] - home['y'])
-    check(f'near its home basket ({d:.1f} m)', G['LAID_EGG_MIN'] - 0.01 <= d <= G['LAID_EGG_MAX'] + 0.01)
-    check('the laid sound plays from the egg', laid_sounds and laid_sounds[-1] is egg)
-    frames(200)
-    check('and never lays again', len(laid()) == 1 and bird['eggs_to_lay'] == 0)
+    check(f'lays a whole clutch at once ({len(laid())} eggs)', len(laid()) == 3)
+    for egg in laid():
+        d = math.hypot(egg['x'] - home['x'], egg['y'] - home['y'])
+        if not G['LAID_EGG_MIN'] - 0.01 <= d <= G['LAID_EGG_MAX'] + 0.01:
+            break
+    check('every egg near its home basket', G['LAID_EGG_MIN'] - 0.01 <= d <= G['LAID_EGG_MAX'] + 0.01)
+    check(f'one laid sound for the clutch, from one of its eggs ({clutches()})',
+          clutches() == 1 and laid_sounds[0] in laid())
+    frames(30)
+    check(f'and lays again next time round ({len(laid())} eggs, {clutches()} clutches)',
+          len(laid()) == 6 and clutches() == 2)
+    frames(90)
+    check(f'and keeps going ({clutches()} clutches after 2.5 minutes)', clutches() == 5)
+
+    print('clutch sizes:')
+    G['CLUTCH_MIN'], G['CLUTCH_MAX'] = 1, 10
+    sizes = [G['clutch_size']({'clutch_bonus': 0}) for _ in range(3000)]
+    check(f'plain clutches range {min(sizes)}-{max(sizes)}', min(sizes) == 1 and max(sizes) == 10)
+    boosted = [G['clutch_size']({'clutch_bonus': 4}) for _ in range(3000)]
+    check(f'a +4 bird lays {min(boosted)}-{max(boosted)}, past the ballpark', min(boosted) == 5 and max(boosted) == 14)
+    check('a bird from an older save, with no bonus field, lays plain clutches',
+          1 <= G['clutch_size']({}) <= 10)
+    G['CLUTCH_MIN'] = G['CLUTCH_MAX'] = 3
 
     print('the setting is honoured:')
     settings['lay_time'] = 90.0
@@ -58,7 +85,7 @@ def run_checks(G):
     frames(60)
     check('nothing at 60 s with a 90 s lay time', not laid())
     frames(31)
-    check('laid by 91 s', len(laid()) == 1)
+    check('laid by 91 s', len(laid()) == 3)
 
     print('timing settings move in 5 second jumps:')
     for name in ('hatch_time', 'lay_time'):
@@ -68,24 +95,24 @@ def run_checks(G):
         G['nudge_setting'](name, -1)
         G['nudge_setting'](name, -1)
         check(f'{name}: 60 -> {up:g} up, {settings[name]:g} down', up == 65.0 and settings[name] == 55.0)
-        for _ in range(100):
+        for _ in range(200):
             G['nudge_setting'](name, -1)
         check(f'{name}: bottoms out at {settings[name]:g} s', settings[name] == 5.0)
     settings['lay_time'] = 30.0
     settings['hatch_time'] = 30.0
 
     print('wild eggs keep coming back, laid ones do not:')
-    settings['lay_time'] = 30.0
     home = fresh_park()
     wild_before = [e for e in eggs if not e.get('laid')]
     G['hatch_into_your_bird'](home)
     frames(31)
     laid_egg = laid()[0]
+    count_before = len(eggs)
     player.update(x=laid_egg['x'], y=laid_egg['y'])
     G['held'].clear()
     G['try_collect_eggs']()
     check('picking up a laid egg adds no new egg',
-          laid_egg not in eggs and len(eggs) == len(wild_before))
+          laid_egg not in eggs and len(eggs) == count_before - 1)
     wild = wild_before[0]
     player.update(x=wild['x'], y=wild['y'])
     G['held'].clear()
@@ -108,38 +135,105 @@ def run_checks(G):
     frames(29)
     check('its wait was frozen while off, not used up', not laid())
     frames(2)
-    check('turned back on, it lays after the rest of its wait', len(laid()) == 1)
+    check('turned back on, it lays after the rest of its wait', len(laid()) == 3)
 
-    print('boosted birds and old saves:')
+    print('older saves:')
     home = fresh_park()
     G['hatch_into_your_bird'](home)
-    birds[0]['eggs_to_lay'] = G['BIRD_EGGS_TO_LAY_MAX']
-    frames(30.5 * G['BIRD_EGGS_TO_LAY_MAX'] + 60)
-    check(f'a bird with {G["BIRD_EGGS_TO_LAY_MAX"]} to lay lays exactly that many ({len(laid())})',
-          len(laid()) == G['BIRD_EGGS_TO_LAY_MAX'])
-    home = fresh_park()
-    G['hatch_into_your_bird'](home)
-    del birds[0]['eggs_to_lay'], birds[0]['lay_timer']     # a bird from before laying existed
+    del birds[0]['clutch_bonus'], birds[0]['lay_timer']    # a bird from before clutches
     frames(31)
-    check('a bird from an older save lays its one egg', len(laid()) == 1)
+    check('a bird from an older save lays a plain clutch after a full wait', len(laid()) == 3)
+    home = fresh_park()
+    G['hatch_into_your_bird'](home)
+    birds[0]['eggs_to_lay'] = 0                             # left over from lifetime laying
+    frames(31)
+    check('an old "no eggs left" count no longer stops it', len(laid()) == 3)
 
     print('saving:')
     home = fresh_park()
     G['hatch_into_your_bird'](home)
+    birds[0]['clutch_bonus'] = 2
     frames(10)
     G['save_park']('test')
     left = birds[0]['lay_timer']
     G['reset_world']()
     check('the park loads', G['load_park']())
-    check(f'the bird still has its egg to lay, with {birds[0]["lay_timer"]:.1f} s left',
-          birds[0]['eggs_to_lay'] == 1 and abs(birds[0]['lay_timer'] - left) < 1e-6)
+    check(f'the bird keeps its bonus and its wait ({birds[0]["lay_timer"]:.1f} s left)',
+          birds[0]['clutch_bonus'] == 2 and abs(birds[0]['lay_timer'] - left) < 1e-6)
     player.update(x=500.0, y=500.0)
     frames(21)
-    check('and lays it on time after loading', len(laid()) == 1)
+    check(f'and lays on time after loading, bonus included ({len(laid())} eggs)', len(laid()) == 5)
     G['save_park']('test')
     G['reset_world']()
     G['load_park']()
-    check('a laid egg stays a laid egg after loading', len(laid()) == 1)
+    check('laid eggs stay laid eggs after loading', len(laid()) == 5)
+    G['CLUTCH_MIN'], G['CLUTCH_MAX'] = 1, 10
+
+    print('ground hatching:')
+    settings['enable_ground_hatching'] = True
+    settings['hatch_time'] = 20.0
+    settings['lay_time'] = 900.0
+    G['CLUTCH_MIN'] = G['CLUTCH_MAX'] = 3
+    flew = []
+    G['fire_wild_bird_flyoff'] = lambda position=None: flew.append(position)
+    home = fresh_park()
+    for e in eggs:
+        e['hatch_timer'] = 20.0
+    G['hatch_into_your_bird'](home)
+    G['lay_clutch'](birds[0])
+    wild_before = [e for e in eggs if not e.get('laid')]
+    check('a fresh clutch and four wild eggs lying out', len(laid()) == 3 and len(wild_before) == 4)
+    frames(19)
+    check('nothing hatches before the hatch time', len(laid()) == 3 and not flew)
+    frames(2)
+    check(f'the uncollected clutch hatches away ({len(laid())} laid left, {len(flew)} flew off)',
+          not laid() and len(flew) == 7)
+    wild_now = [e for e in eggs if not e.get('laid')]
+    check('wild eggs that hatched away are replaced by new ones',
+          len(wild_now) == 4 and not any(e in wild_before for e in wild_now))
+    check('each flies off from where it lay', all(p is not None for p in flew))
+
+    print('picking up keeps the countdown:')
+    home = fresh_park()
+    egg = eggs[0]
+    egg['hatch_timer'] = 20.0
+    frames(15)
+    player.update(x=egg['x'], y=egg['y'])
+    G['held'].clear()
+    G['try_collect_eggs']()
+    left = G['held'][0]['hatch_timer'] if G['held'] else None
+    check(f'an egg lifted with 5 s left still has about 5 s ({left:.1f})', left is not None and 4.5 < left < 5.5)
+    settings['enable_ground_hatching'] = False
+    G['held'].clear()
+    egg = eggs[0]
+    egg['hatch_timer'] = 3.0
+    player.update(x=egg['x'], y=egg['y'])
+    G['try_collect_eggs']()
+    check('with ground hatching off, a lifted egg starts a full hatch time',
+          G['held'] and G['held'][0]['hatch_timer'] == settings['hatch_time'])
+    G['held'].clear()
+    player.update(x=500.0, y=500.0)
+    before = [dict(e) for e in eggs]
+    frames(40)
+    check('and with it off, eggs on the ground never hatch away',
+          [(e['x'], e['y']) for e in eggs] == [(e['x'], e['y']) for e in before])
+
+    print('hearing a ground egg hatch:')
+    played = []
+    G['fire_wild_bird_flyoff'] = flyoff
+    G['_play'] = lambda src, **kw: played.append(kw)
+    player.update(x=0.0, y=0.0)
+    G['fire_wild_bird_flyoff'](position=(10.0, 0.0, 0.0))
+    check('nearby: heard, from where it lay', played and played[-1]['position'] == (10.0, 0.0, 0.0)
+          and played[-1]['volume'] == 0.5)
+    played.clear()
+    G['fire_wild_bird_flyoff'](position=(300.0, 0.0, 0.0))
+    check('far away: silent', not played)
+    G['fire_wild_bird_flyoff']()
+    check('from your hands: at you, full volume', played and played[-1]['position'] is None
+          and played[-1]['volume'] == 0.5)
+    settings['hatch_time'] = 30.0
+    settings['enable_ground_hatching'] = False
 
     print('you only hear birds near you:')
     played = []

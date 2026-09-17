@@ -904,11 +904,18 @@ def fire_egg_laid(egg):
           category='egg-laid')
 
 
-def fire_wild_bird_flyoff():
-    # Non-positional — the bird flies off and away, plays at the listener
-    # since you're losing it.
+def fire_wild_bird_flyoff(position=None):
+    """No position: an egg in your hand, so it plays at you, since you're the
+    one losing it. With a position: an egg on the ground, heard from there,
+    and only if it's in earshot, like a bird."""
+    volume = 0.5
+    if position is not None:
+        d = math.hypot(position[0] - state.player['x'], position[1] - state.player['y'])
+        volume *= max(0.0, min(1.0, (config.BIRD_AUDIBLE - d) / config.BIRD_FADE))
+        if volume <= 0.0:
+            return
     _play(pick_source('wild-bird-flyoff', fallback=_wild_bird_flyoff_source),
-          volume=0.5, category='wild-bird-flyoff')
+          position=position, volume=volume, category='wild-bird-flyoff')
 
 
 def bird_hearing(bird):

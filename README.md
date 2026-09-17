@@ -194,7 +194,7 @@ Inside the settings screen, **Up / Down** picks a setting, **Left / Right**
 adjusts it (volume changes by 10%; toggles flip off / on), **Space** or
 **Enter** toggles, **O** or **Esc** closes. Settings persist to
 `settings.json` next to `main.py`. You can turn off any of the automatic
-mechanics (egg pickup, hand-hatching, basket-hatching, egg calls, basket
+mechanics (egg pickup, hand-hatching, basket-hatching, ground-hatching, bird laying, egg calls, basket
 chimes, bird calls) — useful if you just want to wander the soundscape.
 
 ## Game loop

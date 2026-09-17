@@ -31,7 +31,7 @@ def hatch_into_your_bird(basket):
         'next_call_at': now_t + random.uniform(2.0, 4.0),
         'next_ambient_at': now_t + random.uniform(
             config.BIRD_AMBIENT_MIN_INTERVAL, config.BIRD_AMBIENT_MAX_INTERVAL),
-        'eggs_to_lay': config.BIRD_EGGS_TO_LAY,
+        'clutch_bonus': 0,
         'lay_timer': prefs.settings['lay_time'],
     }
     state.birds.append(bird)
@@ -40,6 +40,26 @@ def hatch_into_your_bird(basket):
 
 
 def tick_hatching(dt):
+    # Eggs on the ground. With ground hatching on, an egg nobody rescues
+    # counts down where it lies and hatches into a wild bird that leaves.
+    # This is what stops a park of laying birds from filling up forever:
+    # eggs lying out can't outlast one hatch time, and your flock only grows
+    # from the eggs you actually get to safety.
+    #
+    # A wild egg that hatches away is replaced, so the wild supply stays what
+    # it was. A laid egg is simply gone. No speech: with a big flock this
+    # would never stop talking. You hear it fly off if it's near you.
+    if prefs.settings['enable_ground_hatching']:
+        for egg in list(state.eggs):
+            egg['hatch_timer'] = egg.get('hatch_timer', prefs.settings['hatch_time']) - dt
+            if egg['hatch_timer'] > 0:
+                continue
+            state.eggs.remove(egg)
+            if not egg.get('laid'):
+                state.eggs.append(world.spawn_egg_far_from_player())
+            sounds.fire_wild_bird_flyoff(position=(egg['x'], egg['y'], egg['z']))
+            world.log_counts(f'{"a laid" if egg.get("laid") else "a wild"} egg hatched on the ground and flew off')
+
     # Held eggs — timer only advances if hand-hatching is enabled, so
     # turning the toggle off effectively freezes any held egg indefinitely.
     if prefs.settings['enable_hand_hatching']:
@@ -121,24 +141,37 @@ def tick_birds(dt):
 
 
 def tick_laying(dt):
-    """Each bird with eggs left to lay counts down and lays one near home.
+    """Each bird counts down to its next clutch and lays it near home.
 
     Counts down with dt, like hatching, so it stops while the menu or
     settings are open and the time left is saved with the park. Birds from
-    before laying existed have neither field, and get a plain bird's one egg
-    and a full wait.
+    before laying existed have no timer yet, and get a full wait.
     """
     if not prefs.settings['enable_bird_laying']:
         return
     for bird in state.birds:
-        if bird.setdefault('eggs_to_lay', config.BIRD_EGGS_TO_LAY) <= 0:
-            continue
         bird['lay_timer'] = bird.get('lay_timer', prefs.settings['lay_time']) - dt
         if bird['lay_timer'] > 0:
             continue
-        egg = world.lay_egg_near(bird['home_x'], bird['home_y'])
-        state.eggs.append(egg)
-        bird['eggs_to_lay'] -= 1
         bird['lay_timer'] = prefs.settings['lay_time']
-        sounds.fire_egg_laid(egg)
-        world.log_counts(f'a bird laid an egg, {bird["eggs_to_lay"]} left for it to lay')
+        lay_clutch(bird)
+
+
+def clutch_size(bird):
+    return random.randint(config.CLUTCH_MIN, config.CLUTCH_MAX) + bird.get('clutch_bonus', 0)
+
+
+def lay_clutch(bird):
+    """Lay a whole clutch at once. One laid sound, from the first egg: a
+    clutch is one event, and ten plops on top of each other would be noise."""
+    size = clutch_size(bird)
+    clutch = []
+    grid = world.egg_grid(config.LAID_EGG_MIN_SEPARATION)
+    for _ in range(size):
+        egg = world.lay_egg_near(bird['home_x'], bird['home_y'], grid)
+        state.eggs.append(egg)
+        world.grid_add(grid, config.LAID_EGG_MIN_SEPARATION, egg)
+        clutch.append(egg)
+    if clutch:
+        sounds.fire_egg_laid(clutch[0])
+    world.log_counts(f'a bird laid a clutch of {size}')

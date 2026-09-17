@@ -103,13 +103,20 @@ SCAN_DURATION = 2.5    # close items ping first, far items last
 # Hatching
 HATCH_TIMER_INITIAL = 30.0
 
-# Birds laying eggs. A bird hatched in a basket lays a set number of eggs
-# over its life, one every "Time before a bird lays" (a setting), near its
-# home basket. You keep eggs safe; the birds they become give you more young
-# to keep safe. Plain birds lay one. Chests, when they exist, are meant to
-# hatch birds with more to lay, up to BIRD_EGGS_TO_LAY_MAX.
-BIRD_EGGS_TO_LAY = 1
-BIRD_EGGS_TO_LAY_MAX = 10
+# Birds laying eggs. A bird hatched in a basket lays a CLUTCH, several eggs at
+# once the way real birds do, every "Time before a bird lays" (a setting), for
+# life, near its home basket. You keep eggs safe; the birds they become give
+# you more young to keep safe.
+#
+# Clutch size is rolled fresh each time from CLUTCH_MIN..CLUTCH_MAX, plus the
+# bird's own clutch_bonus. Plain birds have no bonus; birds hatched in a chest
+# with an egg gift will. CLUTCH_MAX is a ballpark, not a wall: with a bonus a
+# clutch can go past it.
+#
+# (An earlier version gave each bird ONE egg for its whole life. That was a
+# misreading of "birds lay 1-10": it meant a clutch, not a lifetime.)
+CLUTCH_MIN = 1
+CLUTCH_MAX = 10
 LAY_TIME_DEFAULT = 180.0
 LAID_EGG_MIN = 6.0            # from the home basket: close enough to be "theirs"
 LAID_EGG_MAX = 20.0

@@ -66,21 +66,64 @@ def spawn_egg_far_from_player():
                       config.EGG_MIN_SEPARATION)
 
 
-def lay_egg_near(home_x, home_y):
+def lay_egg_near(home_x, home_y, grid=None):
     """An egg laid by a bird: close to its home basket, marked as laid.
 
     Laid eggs are not replaced when picked up. Only wild eggs are, so the wild
     supply stays what it was and every extra egg in the park came from a bird.
+
+    Laying a whole clutch? Pass one grid (egg_grid) and grid_add each egg to
+    it, so the park is sorted once per clutch, not once per egg.
     """
     egg = _place_egg([(home_x, home_y)], config.LAID_EGG_MIN, config.LAID_EGG_MAX,
-                     config.LAID_EGG_MIN_SEPARATION)
+                     config.LAID_EGG_MIN_SEPARATION, grid)
     egg['laid'] = True
     return egg
 
 
-def _place_egg(anchors, dist_min, dist_max, separation):
+# Egg placement asks "how close is the nearest egg to this spot?" up to
+# EGG_PLACE_ATTEMPTS times per egg. Asking every egg in the park each time was
+# fine with four eggs and not with clutches: at 10,000 eggs, one clutch of ten
+# took about four million distance checks, because eggs bunch around a bird's
+# home and few tries succeed first time.
+#
+# So eggs are sorted into square cells the size of the separation being
+# checked. Any egg close enough to matter lies in the spot's own cell or one
+# of the eight around it, so only those are looked at. The answer to "is
+# anything within `separation`?" is exactly the same, and so is the distance
+# when something is, so the same spot is chosen as before. Proven by laying
+# clutches from the same random seed with both versions.
+
+def egg_grid(cell):
+    grid = {}
+    for egg in state.eggs:
+        grid_add(grid, cell, egg)
+    return grid
+
+
+def grid_add(grid, cell, egg):
+    grid.setdefault((math.floor(egg['x'] / cell), math.floor(egg['y'] / cell)), []).append(egg)
+
+
+def _nearest_egg_within_reach(grid, cell, x, y):
+    """Distance to the nearest egg in the 3x3 cells around (x, y), or infinity.
+    Exact whenever the true nearest egg is closer than `cell`."""
+    cx, cy = math.floor(x / cell), math.floor(y / cell)
+    best = float('inf')
+    for gx in (cx - 1, cx, cx + 1):
+        for gy in (cy - 1, cy, cy + 1):
+            for e in grid.get((gx, gy), ()):
+                d = math.hypot(e['x'] - x, e['y'] - y)
+                if d < best:
+                    best = d
+    return best
+
+
+def _place_egg(anchors, dist_min, dist_max, separation, grid=None):
     """An egg dist_min..dist_max from a random anchor, `separation` from the
     other eggs and EGG_MIN_FROM_PLAYER from you, as far as possible."""
+    if grid is None:
+        grid = egg_grid(separation)
     best, best_gap = None, -1.0
     for _attempt in range(config.EGG_PLACE_ATTEMPTS):
         ax, ay = random.choice(anchors)
@@ -90,8 +133,7 @@ def _place_egg(anchors, dist_min, dist_max, separation):
         y = ay + math.sin(angle) * dist
         if math.hypot(x - state.player['x'], y - state.player['y']) < config.EGG_MIN_FROM_PLAYER:
             continue
-        gap = min((math.hypot(e['x'] - x, e['y'] - y) for e in state.eggs),
-                  default=float('inf'))
+        gap = _nearest_egg_within_reach(grid, separation, x, y)
         if gap > best_gap:
             best, best_gap = (x, y), gap
         if gap >= separation:
@@ -183,16 +225,22 @@ def try_collect_eggs():
             # Don't dequeue — egg stays so the player can come back after
             # depositing.
             return
-        # Collect: move this egg's remaining hatch timer into hand.
+        # Collect: move this egg's hatch timer into hand.
         # next_warning is a per-egg countdown to the next warning chirp;
         # it only matters once hatch_timer drops below WARNING_WINDOW.
-        # The clock genuinely starts when you lift it: an egg lying in the
-        # world never ticks (only held and basketed eggs count down), so its
-        # stored timer is still exactly what it was given at spawn. Reading
-        # the setting here means the slider takes effect on the very next egg
-        # you pick up instead of the next one that spawns -- which is what
-        # you need when you're tuning it by feel.
-        state.held.append({'hatch_timer': prefs.settings['hatch_time'], 'next_warning': 0.0})
+        #
+        # With ground hatching on, the egg has been counting down where it
+        # lay, and it keeps what it has left: picking one up at the last
+        # second must not wind it back to full.
+        #
+        # With it off, eggs on the ground never tick, so the clock genuinely
+        # starts when you lift it, and reading the setting here means the
+        # slider takes effect on the very next egg you pick up.
+        if prefs.settings['enable_ground_hatching']:
+            timer = egg.get('hatch_timer', prefs.settings['hatch_time'])
+        else:
+            timer = prefs.settings['hatch_time']
+        state.held.append({'hatch_timer': timer, 'next_warning': 0.0})
         sounds.fire_collect_sound()
         speech.say(f'Egg collected. {len(state.held)} of {player_carry_cap()} held.')
         state.eggs.remove(egg)

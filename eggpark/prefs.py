@@ -106,6 +106,7 @@ SETTINGS_MENU = [
     {'key': 'enable_pickup',          'label': 'Egg pickup',      'kind': 'bool', 'default': True},
     {'key': 'enable_hand_hatching',   'label': 'Hand hatching',   'kind': 'bool', 'default': True},
     {'key': 'enable_basket_hatching', 'label': 'Basket hatching', 'kind': 'bool', 'default': True},
+    {'key': 'enable_ground_hatching', 'label': 'Ground hatching', 'kind': 'bool', 'default': False},
     {'key': 'enable_bird_laying',     'label': 'Birds lay eggs',  'kind': 'bool', 'default': True},
     {'key': 'enable_egg_calls',       'label': 'Egg calls',       'kind': 'bool', 'default': True},
     {'key': 'enable_basket_chimes',   'label': 'Basket chimes',   'kind': 'bool', 'default': True},

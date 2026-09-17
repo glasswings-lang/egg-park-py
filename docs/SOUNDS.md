@@ -363,9 +363,11 @@ you like; the engine plays them at the right positions.
 
 ### `wild-bird-flyoff` — 3 variants
 - **Trigger**: A held egg's hatch timer reaches 0 before you reach a
-  basket. The bird flies off into the world — not yours.
-- **Spatial**: no (plays at listener — you're losing the bird, it's a
-  personal loss, not a position cue).
+  basket. The bird flies off into the world — not yours. Also, with ground
+  hatching on, an egg nobody rescued hatching where it lay.
+- **Spatial**: from a held egg, no (plays at listener — you're losing the
+  bird, it's a personal loss, not a position cue). From an egg on the
+  ground, yes, from where it lay, and only within 80 m.
 - **Duration**: 1.0–2.0 s.
 - **Character**: Crack + chirp like `hatch-in-basket`, but with a
   "flutter away" tail. The bird is leaving you. Bittersweet — not a
