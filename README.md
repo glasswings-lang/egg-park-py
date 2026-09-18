@@ -127,6 +127,40 @@ Starting a new park over a saved one takes Enter twice, and the old park is
 kept as `park-previous.json`. A save that can't be read is never overwritten;
 it's set aside as `park-unreadable.json` and a fresh park starts.
 
+## On a controller
+
+Plug one in and it works — a wired Xbox pad is what this was built against.
+Nothing has to be configured, and the keyboard is untouched. Press **Y** on
+the pad to hear the whole mapping read out.
+
+Why it exists: a keyboard hurts to play on for long, and holding a turn key
+gives you all of the turn speed or none of it, so every correction
+overshoots. A stick is analog. A nudge turns you a little, and a gentle push
+walks you slowly up to an egg.
+
+| | |
+| --- | --- |
+| **Left stick** | Walk, any direction. How far you push is how fast you go |
+| **Right stick** | Turn, proportionally |
+| **Right trigger** | Hold to run |
+| **A** | Scan |
+| **B** | Deposit |
+| **X** | Your status |
+| **Y** | Read out the controller controls |
+| **D-pad up / down** | Lead to a found / unfound basket |
+| **D-pad right / left** | Lead to a found / unfound chest |
+| **Bumpers** | Volume down / up |
+| **Start / Back** | Main menu / settings |
+
+In any menu the stick or D-pad moves the focus, **A** picks and **B** goes
+back, so a session never has to start at the keyboard. A held stick is one
+step, not sixty a second.
+
+Three settings go with it: *Controller* switches it off entirely,
+*Controller turning, fineness* sets how gentle small pushes are, and
+*Controller stick slack* is the deadzone, for a worn stick that drifts at
+rest.
+
 ## Play log
 
 Every session writes `play-log.txt` next to `main.py`: everything the game
@@ -158,6 +192,7 @@ python tests/test_crash_safety.py   # a scan in a full park, and the crash log
 python tests/test_tally.py          # many events at once make one sound, not hundreds
 python tests/test_big_park.py       # 12,000 eggs and 250 birds still run smoothly
 python tests/test_duck.py           # the park quietens while the scan answers
+python tests/test_pad.py            # the controller: sticks, buttons, menus
 ```
 
 Plain Python, no pytest. The first two read the game's code as text rather
@@ -255,6 +290,7 @@ egg-park-py/
 │   ├── scan.py        #   scanning, B, and the scan guide
 │   ├── flock.py       #   hatching and birds
 │   ├── tally.py       #   repeated events counted, and reported once
+│   ├── pad.py         #   the controller: sticks, buttons, menus
 │   ├── chests.py      #   chests: gifts, finding, C and Shift+C
 │   ├── game.py        #   window, keys, per-frame update, status
 │   └── saving.py      #   saving and loading the park
