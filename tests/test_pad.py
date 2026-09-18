@@ -11,6 +11,7 @@ Run: python tests/test_pad.py
 
 Runs the real game, safely: see _game_harness.py.
 """
+import inspect
 import math
 
 import _game_harness  # noqa: F401  (hidden desktop, silence; must come first)
@@ -60,6 +61,28 @@ def run_checks(G):
         player.update(x=0.0, y=0.0, yaw=0.0)
         frames(int(seconds * 60))
         return math.hypot(player['x'], player['y'])
+
+    # THE CHECK THAT WOULD HAVE CAUGHT THE CRASH.
+    #
+    # The first version of this file crashed the game the moment a pad was
+    # plugged in, because _on_dpad was written to take four booleans and
+    # pyglet sends one vector — and the old test called the handler with four
+    # booleans too, so it passed. A test that agrees with the code about a
+    # thing they both got wrong is worse than no test.
+    #
+    # pyglet declares the shape of each event as a stub method on
+    # Controller, so that is the thing to measure against, not my memory.
+    from pyglet.input.base import Controller, ControllerManager
+    for source, event, handler in (
+            (Controller, 'on_dpad_motion', G['_on_dpad']),
+            (Controller, 'on_button_press', G['_on_button']),
+            (ControllerManager, 'on_connect', G['_on_connect']),
+            (ControllerManager, 'on_disconnect', G['_on_disconnect'])):
+        theirs = [p for p in inspect.signature(getattr(source, event)).parameters
+                  if p != 'self']
+        ours = list(inspect.signature(handler).parameters)
+        check(f'{handler.__name__} matches pyglet {event}{tuple(theirs)}: {tuple(ours)}',
+              len(ours) == len(theirs))
 
     print('the deadzone:')
     fake.leftx = fake.lefty = 0.0
@@ -149,15 +172,20 @@ def run_checks(G):
 
     print('the D-pad leads you places:')
 
-    def dpad(left=False, right=False, up=False, down=False):
+    # pyglet sends ONE Vec2: x is -1 left / +1 right, y is -1 down / +1 up.
+    # Calling the handler any other way is testing my memory of the library
+    # rather than the library, which is how this shipped broken once.
+    from pyglet.math import Vec2
+
+    def dpad(x=0.0, y=0.0):
         fired.clear()
-        G['_on_dpad'](fake, left, right, up, down)
+        G['_on_dpad'](fake, Vec2(x, y))
         return fired
 
-    check('up: a basket you have found', dpad(up=True) == ['try_scan_found_baskets'])
-    check('down: a basket you have not', dpad(down=True) == ['try_scan_unfound_baskets'])
-    check('right: a chest you have found', dpad(right=True) == ['try_scan_found_chests'])
-    check('left: a chest you have not', dpad(left=True) == ['try_scan_unfound_chests'])
+    check('up: a basket you have found', dpad(y=1) == ['try_scan_found_baskets'])
+    check('down: a basket you have not', dpad(y=-1) == ['try_scan_unfound_baskets'])
+    check('right: a chest you have found', dpad(x=1) == ['try_scan_found_chests'])
+    check('left: a chest you have not', dpad(x=-1) == ['try_scan_unfound_chests'])
     check('letting go does nothing', dpad() == [])
 
     print('volume, on the bumpers:')
@@ -177,7 +205,7 @@ def run_checks(G):
     G['main_menu_activate'] = lambda: picked.append(1)
     G['open_main_menu'] = real['open_main_menu']        # the real one again
     G['open_main_menu']()
-    G['_on_dpad'](fake, False, False, True, False)
+    G['_on_dpad'](fake, Vec2(0.0, 1.0))
     check(f'D-pad up moves the focus up ({moves!r})', moves == [-1])
     G['_on_button'](fake, 'a')
     check('A picks the item', picked == [1])

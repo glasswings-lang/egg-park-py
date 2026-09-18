@@ -220,10 +220,25 @@ def tick_menus():
 
 # ---------------------------------------------------------------- buttons
 
-def _on_dpad(controller, left, right, up, down):
-    """The D-pad. pyglet sends one event per change with every direction's
-    state, so a release arrives as all four false and does nothing here."""
+def _on_dpad(controller, vector):
+    """The D-pad.
+
+    pyglet sends ONE 2D vector, not four booleans: x is -1 left, 0, or 1
+    right, and y is -1 down, 0, or 1 up. Letting go arrives as (0, 0), which
+    falls through here and does nothing, which is what you want.
+
+    This signature is pyglet's, and it is written down in
+    pyglet.input.base.Controller.on_dpad_motion. Guessing it from memory
+    instead cost a crash on load the first time a pad was plugged in — the
+    pad reports its resting state as soon as the game opens, so the wrong
+    signature was not a bug you could fail to hit. tests/test_pad.py now
+    compares these handlers against pyglet's own declarations.
+    """
     from eggpark import chests, menu, prefs, scan, soundtest
+    left = vector.x < -0.5
+    right = vector.x > 0.5
+    up = vector.y > 0.5
+    down = vector.y < -0.5
     if menu._in_main_menu or prefs._in_settings or soundtest._in_sound_test:
         if up or down:
             step = -1 if up else 1
