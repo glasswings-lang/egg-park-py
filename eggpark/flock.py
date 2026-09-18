@@ -195,12 +195,27 @@ def tick_laying(dt):
     """
     if not prefs.settings['enable_bird_laying']:
         return
+    # At most LAY_CLUTCHES_PER_FRAME clutches are laid in any one frame, and
+    # the rest wait for the next one.
+    #
+    # Birds hatch in batches, so their laying timers line up, and then they
+    # all come due together. A flock of 231 was measured laying dozens of
+    # clutches in a single frame: 290 ms of placement work while the world
+    # stood still, which is felt as footsteps arriving in clumps rather than
+    # as a frame rate. One a frame is 60 a second of capacity, far more than
+    # any flock needs, and nothing is skipped — a bird that has to wait a
+    # frame or two lays a moment later, which is invisible.
+    laid = 0
     for bird in state.birds:
         bird['lay_timer'] = bird.get('lay_timer', prefs.settings['lay_time']) - dt
         if bird['lay_timer'] > 0:
             continue
+        if laid >= config.LAY_CLUTCHES_PER_FRAME:
+            bird['lay_timer'] = 0.0       # due, and first in line next frame
+            continue
         bird['lay_timer'] = prefs.settings['lay_time']
         lay_clutch(bird)
+        laid += 1
 
 
 def clutch_size(bird):
@@ -212,7 +227,11 @@ def lay_clutch(bird):
     clutch is one event, and ten plops on top of each other would be noise."""
     size = clutch_size(bird)
     clutch = []
-    grid = world.egg_grid(config.LAID_EGG_MIN_SEPARATION)
+    # Only the eggs near this basket can be a clutch's neighbours, and
+    # sorting the whole park for each clutch was most of the cost of laying.
+    grid = world.egg_grid_near(bird['home_x'], bird['home_y'],
+                               config.LAID_EGG_MAX + config.LAID_EGG_MIN_SEPARATION,
+                               config.LAID_EGG_MIN_SEPARATION)
     for _ in range(size):
         egg = world.lay_egg_near(bird['home_x'], bird['home_y'], grid)
         state.eggs.append(egg)

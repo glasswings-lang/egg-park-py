@@ -170,6 +170,10 @@ LAY_TIME_DEFAULT = 180.0
 LAID_EGG_MIN = 6.0            # from the home basket: close enough to be "theirs"
 LAID_EGG_MAX = 20.0
 LAID_EGG_MIN_SEPARATION = 8.0  # several birds share a basket; don't stack eggs
+# Clutches laid in one frame, however many birds are due. Birds hatch in
+# batches, so their timers line up and a big flock lands dozens of clutches at
+# once; at 60 frames a second this is still 60 clutches a second of capacity.
+LAY_CLUTCHES_PER_FRAME = 1
 WILD_BIRD_DISPERSAL = 1.5
 BIRD_CALL_MIN_INTERVAL = 8.0
 BIRD_CALL_MAX_INTERVAL = 16.0
