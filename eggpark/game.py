@@ -6,7 +6,7 @@ import time
 import pyglet
 from pyglet.window import key
 
-from eggpark import chests, config, flock, menu, prefs, saving, scan, sounds, soundtest, speech, state, tally, world
+from eggpark import chests, config, flock, menu, pad, prefs, saving, scan, sounds, soundtest, speech, state, tally, world
 
 # ============================================================================
 # Window + input
@@ -43,7 +43,10 @@ CONTROL_HELP = (
 
 
 def speak_controls():
-    speech.say('Controls. ' + ' '.join(body for _label, body in CONTROL_HELP))
+    parts = ['Controls. ' + ' '.join(body for _label, body in CONTROL_HELP)]
+    if pad.connected():
+        parts.append(pad.PAD_HELP)
+    speech.say(' '.join(parts))
 
 
 def on_key_press(symbol, modifiers):
@@ -205,26 +208,44 @@ def update(dt):
     # no calls. Hatch timers don't advance, so opening settings mid-game
     # doesn't accidentally lose a held egg.
     if prefs._in_settings or menu._in_main_menu or soundtest._in_sound_test:
+        # A menu is open, and the stick still moves through it.
+        pad.tick_menus()
         return
 
-    # Turn.
+    # The controller, read once: how far each stick is pushed, this frame.
+    # Analog all the way through — see eggpark/pad.py for why that matters
+    # more than it sounds like it should.
+    pad_forward, pad_right, pad_turn, pad_running = pad.read()
+
+    # Turn. Keys are all-or-nothing, the stick is proportional, and they add:
+    # holding Q with the stick half over is still just a left turn.
     turn_speed = prefs.settings['turn_speed']
+    turn = pad_turn
     if keys[key.Q] or keys[key.LEFT]:
-        state.player['yaw'] += turn_speed * dt
+        turn += 1.0
     if keys[key.E] or keys[key.RIGHT]:
-        state.player['yaw'] -= turn_speed * dt
+        turn -= 1.0
+    if turn:
+        state.player['yaw'] += turn_speed * dt * max(-1.0, min(1.0, turn))
 
     # Move (forward + strafe).
     move_forward = (1 if keys[key.W] or keys[key.UP] else 0) - \
                    (1 if keys[key.S] or keys[key.DOWN] else 0)
     move_right = (1 if keys[key.D] else 0) - (1 if keys[key.A] else 0)
+    move_forward = max(-1.0, min(1.0, move_forward + pad_forward))
+    move_right = max(-1.0, min(1.0, move_right + pad_right))
 
-    if move_forward != 0 or move_right != 0:
+    # How hard you are pushing, 0 to 1. A key is always 1, so the keyboard
+    # plays exactly as it did; a stick can ask for a slow walk, which is what
+    # makes a fine approach possible at all.
+    push = min(1.0, math.hypot(move_forward, move_right))
+    if push > 0.001:
         dx = math.cos(state.player['yaw']) * move_forward + math.sin(state.player['yaw']) * move_right
         dy = math.sin(state.player['yaw']) * move_forward - math.cos(state.player['yaw']) * move_right
         length = math.hypot(dx, dy)
-        running = keys[key.LSHIFT] or keys[key.RSHIFT]
-        walk_speed = prefs.settings['run_speed'] if running else prefs.settings['walk_speed']
+        running = keys[key.LSHIFT] or keys[key.RSHIFT] or pad_running
+        top_speed = prefs.settings['run_speed'] if running else prefs.settings['walk_speed']
+        walk_speed = top_speed * push
         stride = config.RUN_STEP_DISTANCE if running else config.STEP_DISTANCE
         state.player['x'] += (dx / length) * walk_speed * dt
         state.player['y'] += (dy / length) * walk_speed * dt

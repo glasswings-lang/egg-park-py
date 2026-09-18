@@ -40,6 +40,17 @@ Controls (game):
   H / ?           — speak the controls aloud (this list, in the game)
   Escape          — back to the main menu (Quit lives there)
 
+Controls (a wired or wireless controller, if one is plugged in):
+  Left stick      — walk, and how far you push is how fast you go
+  Right stick     — turn left and right, proportionally
+  Right trigger   — hold to run
+  A / B / X / Y   — scan / deposit / status / read out the controls
+  D-pad           — up and down lead to a found or unfound basket,
+                    right and left to a found or unfound chest
+  Bumpers         — volume down and up
+  Start / Back    — main menu / settings
+  In a menu       — stick or D-pad moves, A picks, B goes back
+
 Controls (settings screen):
   Up / Down       — focus previous / next setting
   Left / Right    — decrease / increase  (volume: -/+10%; toggles: off/on)
@@ -64,7 +75,7 @@ pyglet.options['audio'] = ('openal', 'xaudio2', 'directsound', 'pulse', 'silent'
 
 # The game itself lives in the eggpark package, one file per part. Imported
 # only now, after the audio driver and DLL path above are set.
-from eggpark import game, menu, prefs, saving, sounds, speech  # noqa: E402
+from eggpark import game, menu, pad, prefs, saving, sounds, speech  # noqa: E402
 
 # Work that used to happen as a side effect of loading the one big file.
 # Explicit, and in this order: the log first so anything said is recorded,
@@ -97,6 +108,10 @@ sys.excepthook = _on_crash
 
 prefs.load_settings()
 sounds.rebuild_sample_bank()
+# A controller, if one is plugged in, and it keeps watching for one. Never
+# required: with no pad, or no controller support in this pyglet build, the
+# keyboard is exactly as it was.
+pad.open_pad()
 
 
 # ============================================================================

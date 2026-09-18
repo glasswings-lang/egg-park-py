@@ -190,6 +190,18 @@ BIRD_WANDER_SPEED = 0.4
 BIRD_AUDIBLE = 80.0
 BIRD_FADE = 20.0
 
+# Controller. A stick at rest does not read zero, so anything inside the
+# deadzone counts as centre and the rest of the travel is stretched back over
+# a full range, or the pad would be slower than the keyboard.
+#
+# The curves bend the response: >1 keeps small pushes small, which is the
+# whole reason for playing on a stick rather than on keys. Turning gets the
+# stronger curve because that is where overshooting hurts.
+PAD_DEADZONE = 0.15
+PAD_MOVE_CURVE = 1.5
+PAD_TURN_CURVE = 2.0
+PAD_TRIGGER_THRESHOLD = 0.4   # how far the right trigger counts as running
+
 # Footsteps — distance the player has to walk before the next step fires.
 # Cadence is implicitly tied to walk speed: 1.0 m stride at default 2.0 m/s
 # = ~2 steps/sec = ~120 BPM (natural walking cadence). Slower walk_speed

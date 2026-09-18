@@ -114,8 +114,25 @@ SETTINGS_MENU = [
     # the sounds. Turning this off forces every cue back to its placeholder,
     # so a take can be compared against what it's replacing without moving
     # files around on disk.
+    # How fine the turning is near the middle of the stick. 1 is straight
+    # through: a quarter push turns a quarter as fast. Higher keeps small
+    # pushes small, which is what makes a gentle correction possible instead
+    # of a swing — and how fine is fine enough is an ears-and-hands question.
+    {'key': 'pad_turn_curve', 'label': 'Controller turning, fineness', 'kind': 'range',
+     'default': config.PAD_TURN_CURVE, 'min': 1.0, 'max': 3.0, 'step': 0.25,
+     'format': lambda v: ('straight through' if v <= 1.0 else f'{v:.2f}, finer near the middle')},
+    # A worn stick does not read zero at rest, and the park drifting while
+    # you hold nothing reads as the world wandering off by itself. Raise this
+    # until it stops.
+    {'key': 'pad_deadzone', 'label': 'Controller stick slack', 'kind': 'range',
+     'default': config.PAD_DEADZONE, 'min': 0.0, 'max': 0.4, 'step': 0.05,
+     'format': lambda v: ('none' if v <= 0.0 else f'{v * 100:.0f} percent ignored')},
     {'key': 'prefer_samples', 'label': 'Use recordings when available',
      'kind': 'bool', 'default': True},
+    # A pad with a worn stick drifts, which in an audio game reads as the
+    # world wandering off by itself. Switching it off here is quicker than
+    # unplugging.
+    {'key': 'enable_controller',      'label': 'Controller',      'kind': 'bool', 'default': True},
     {'key': 'enable_pickup',          'label': 'Egg pickup',      'kind': 'bool', 'default': True},
     {'key': 'enable_hand_hatching',   'label': 'Hand hatching',   'kind': 'bool', 'default': True},
     {'key': 'enable_basket_hatching', 'label': 'Basket hatching', 'kind': 'bool', 'default': True},
