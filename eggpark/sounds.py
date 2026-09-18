@@ -4,6 +4,7 @@ import glob
 import math
 import os
 import random
+import time
 
 import pyglet
 from pyglet.media import synthesis
@@ -932,6 +933,77 @@ _active_players = set()
 _listener_locked = set()
 
 
+# Ducking: the park steps back while the scan is talking.
+#
+# Reported as "I literally can't hear it under everything else in an active
+# park", and no volume slider can fix that — turning the scan up turns the
+# park up with it, because the park is what is covering it. A busy park is
+# egg calls, two kinds of chime, bird calls, rustles, footsteps and the bed,
+# all in the same few hundred hertz as the pings.
+#
+# So the scan cues duck everything else: for as long as a scan is answering
+# or a guide is leading you, every other sound plays at DUCK_LEVEL. Sounds
+# already playing are pulled down too, not just new ones, or the wash you are
+# under at the moment you press Space would ride over the whole answer.
+#
+# This is what a mixing desk does with a voice-over, and it is why you can
+# hear a station announcement over music. Nothing is silenced: the park stays
+# audible underneath, it just stops competing.
+#
+# TUNE BY EAR. DUCK_LEVEL is how far the world drops (0.35 is about -9 dB;
+# 1.0 is no ducking at all). DUCK_HOLD is how long one scan cue holds the
+# world down, and each new cue renews it, so a guide that blips every second
+# keeps the world quiet while it leads you.
+DUCK_LEVEL = 0.35
+DUCK_HOLD = 1.1
+
+# The cues that DO the ducking. They are never ducked themselves.
+DUCKING_CATEGORIES = frozenset((
+    'scan-start', 'scan-egg-ping', 'scan-basket-ping', 'scan-chest-ping',
+    'scan-guide',
+))
+
+_duck_until = 0.0
+
+
+def duck_for(seconds=DUCK_HOLD):
+    """Hold the park down for a moment. Called by every scan cue."""
+    global _duck_until
+    _duck_until = max(_duck_until, time.monotonic() + seconds)
+    _apply_duck()
+
+
+def duck_level():
+    """How far the park drops, from settings so the slider works at once."""
+    return prefs.settings.get('duck_level', DUCK_LEVEL)
+
+
+def duck_factor(category):
+    if category in DUCKING_CATEGORIES:
+        return 1.0
+    return duck_level() if time.monotonic() < _duck_until else 1.0
+
+
+def stop_ducking():
+    """Let the park back up at once. For stopping a guide, and new parks."""
+    global _duck_until
+    _duck_until = 0.0
+    _apply_duck()
+
+
+def _apply_duck():
+    """Re-level every sound already playing. A player carries the volume it
+    was fired at, so this can be applied and lifted without drift."""
+    for p in tuple(_active_players):
+        base = getattr(p, '_eggpark_base_volume', None)
+        if base is None:
+            continue
+        try:
+            p.volume = base * duck_factor(getattr(p, '_eggpark_category', None))
+        except Exception:
+            _active_players.discard(p)
+
+
 # How many sounds may play at once.
 #
 # OpenAL hands out a fixed number of sources — 256 on this machine, measured
@@ -967,7 +1039,14 @@ def _play(source, *, position=None, volume=1.0, category=None,
     cat_vol = 1.0
     if category:
         cat_vol = prefs.settings.get('vol_' + category.replace('-', '_'), 1.0)
-    p.volume = volume * prefs.settings['master_volume'] * cat_vol
+    base = volume * prefs.settings['master_volume'] * cat_vol
+    # Kept on the player so the duck can re-level it later without having to
+    # know how it was worked out.
+    p._eggpark_base_volume = base
+    p._eggpark_category = category
+    p.volume = base * duck_factor(category)
+    if category in DUCKING_CATEGORIES:
+        duck_for()
     # Spatialize. If the caller passed a world position, use it. Otherwise
     # snap the source to the listener's current position — without this,
     # the source defaults to OpenAL's world-origin (0,0,0) and the listener
@@ -1411,7 +1490,8 @@ def _sync_ambience():
             _ambience_player.position = (state.player['x'], state.player['y'], state.player['z'])
             _ambience_player.min_distance = config.SOURCE_MIN_DISTANCE
             _ambience_player.max_distance = config.SOURCE_MAX_DISTANCE
-        _ambience_player.volume = target_vol
+        _ambience_player._eggpark_base_volume = target_vol
+        _ambience_player.volume = target_vol * duck_factor('ambience')
         if not _ambience_player.playing:
             _ambience_player.play()
     else:
@@ -1439,6 +1519,9 @@ def update_listener():
     # the player around the world instead of staying at the spawn point.
     if _ambience_player is not None:
         _ambience_player.position = pos
+        base = getattr(_ambience_player, '_eggpark_base_volume', None)
+        if base is not None:
+            _ambience_player.volume = base * duck_factor('ambience')
     # Same treatment for the at-the-listener one-shots. Iterate a copy: a
     # player can reach end-of-stream and drop out of the set mid-loop.
     for p in tuple(_listener_locked):
@@ -1446,3 +1529,6 @@ def update_listener():
             p.position = pos
         except Exception:
             _listener_locked.discard(p)
+    # The duck is a moment long and has to lift on its own, so it is
+    # re-applied every frame rather than only when a scan cue fires.
+    _apply_duck()

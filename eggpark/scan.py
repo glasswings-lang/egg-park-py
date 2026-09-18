@@ -171,6 +171,9 @@ def start_scan_guide(kind, target):
 def stop_scan_guide():
     global _scan_guide
     _scan_guide = None
+    # Nothing is leading you any more, so the park comes straight back up
+    # rather than waiting out the last blip's hold.
+    sounds.stop_ducking()
 
 
 def _scan_guide_still_wanted(g, dist):

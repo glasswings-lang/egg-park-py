@@ -157,6 +157,7 @@ python tests/test_nets.py           # nets, scooping, basket and chest footsteps
 python tests/test_crash_safety.py   # a scan in a full park, and the crash log
 python tests/test_tally.py          # many events at once make one sound, not hundreds
 python tests/test_big_park.py       # 12,000 eggs and 250 birds still run smoothly
+python tests/test_duck.py           # the park quietens while the scan answers
 ```
 
 Plain Python, no pytest. The first two read the game's code as text rather

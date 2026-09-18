@@ -89,6 +89,16 @@ SETTINGS_MENU = [
     {'key': 'audio_distance', 'label': 'Hearing distance', 'kind': 'range',
      'default': config.SOURCE_MIN_DISTANCE, 'min': 1.0, 'max': 60.0, 'step': 5.0,
      'format': lambda v: f'{v:.0f} meters at full volume'},
+    # How far the rest of the park drops while a scan is answering or a guide
+    # is leading you. A busy park covers the scan completely, and no volume
+    # setting can fix that on its own: turning the scan up turns the park up
+    # with it. 100% is no ducking at all, which is how it used to be.
+    # On a slider because the right amount depends on your headphones, your
+    # park and your ears, none of which the number knows about.
+    {'key': 'duck_level', 'label': 'Park quietens during a scan', 'kind': 'range',
+     'default': 0.35, 'min': 0.1, 'max': 1.0, 'step': 0.05,
+     'format': lambda v: ('no quietening' if v >= 0.999
+                          else f'down to {v * 100:.0f} percent')},
     # How long you have to carry an egg before it hatches. On a slider for
     # the same reason as hearing distance: 30 seconds is a number, and
     # whether it feels like a pleasant push or a hostile stopwatch is not
