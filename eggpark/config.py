@@ -227,6 +227,31 @@ PAD_TRIGGER_THRESHOLD = 0.4   # how far the right trigger counts as running
 # spaces them out; faster compresses them toward a jog/run rate.
 STEP_DISTANCE = 1.0
 
+# Speed builds rather than snapping on. Running used to be a number that
+# changed: 2 m/s became 5 m/s between one frame and the next, and the only
+# thing you could hear was the footstep rate, which hardly moved because a
+# running stride is longer. It did not feel like running, and it was reported
+# as not being running.
+#
+# ACCELERATION is how fast you gather speed, BRAKING how fast you lose it.
+# Braking is quicker than acceleration, the way legs are: from a full run,
+# 5 / 14 is about a third of a second and roughly a metre of coast, which
+# reads as weight rather than as ice. Reaching a 5 m/s run takes 5 / 8, a bit
+# over half a second — long enough to hear it arrive.
+ACCELERATION = 8.0
+BRAKING = 14.0
+
+# Wind. A speed cue, since footstep cadence alone could not carry it. Loudest
+# at the run speed, silent at a standstill, and low-passed like everything
+# else in this game that is made of noise — between the ambience bed (200 Hz)
+# and the footsteps (5 kHz), the same window the wingbeats sit in.
+WIND_CUTOFF_HZ = 900.0
+WIND_LOOP_SECONDS = 4.0
+WIND_MAX_VOLUME = 0.30     # at full running speed, before the sliders
+WIND_SPEED_CURVE = 1.6     # >1 keeps a gentle walk nearly silent
+WIND_SMOOTHING = 5.0       # how quickly the wind follows a change of speed
+WIND_PITCH_RISE = 0.18     # how much higher it sits at a full run
+
 # Running: hold Shift. A longer stride, not just the same step faster —
 # 5 m/s at a one-metre stride is five steps a second, which is a drumroll,
 # not a run. At 1.8 m it's under three a second, and still clearly quicker.

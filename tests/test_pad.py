@@ -57,10 +57,16 @@ def run_checks(G):
         for _ in range(n):
             G['update'](dt)
 
+    # Speed builds (see test_speed.py), so every measured walk starts from a
+    # standstill and expects top * T minus the ramp.
     def walk_for(seconds):
+        G['_speed'] = 0.0
         player.update(x=0.0, y=0.0, yaw=0.0)
         frames(int(seconds * 60))
         return math.hypot(player['x'], player['y'])
+
+    def expected(top, seconds):
+        return top * seconds - top * top / (2 * G['ACCELERATION'])
 
     # THE CHECK THAT WOULD HAVE CAUGHT THE CRASH.
     #
@@ -97,13 +103,14 @@ def run_checks(G):
     full = walk_for(1)
     fake.lefty = 0.5
     half = walk_for(1)
-    check(f'fully forward walks at the walk speed ({full:.2f} m in a second)',
-          abs(full - 2.0) < 0.05)
+    check(f'fully forward walks at the walk speed ({full:.2f} m in a second, '
+          f'{expected(2.0, 1):.2f} expected with the ramp)',
+          abs(full - expected(2.0, 1)) < 0.05)
     check(f'half forward is slower, not the same ({half:.2f} m)', 0.1 < half < full * 0.8)
     fake.lefty = -1.0
     player.update(x=0.0, y=0.0, yaw=0.0)
     frames(60)
-    check(f'back on the stick walks backwards ({player["x"]:.2f} m)', player['x'] < -1.5)
+    check(f'back on the stick walks backwards ({player["x"]:.2f} m)', player['x'] < -1.5)  # noqa: E501
     fake.lefty = 0.0
     fake.leftx = 1.0
     player.update(x=0.0, y=0.0, yaw=0.0)
@@ -143,7 +150,7 @@ def run_checks(G):
     fake.righttrigger = 0.0
     walked = walk_for(1)
     check(f'held, you run ({ran:.1f} m a second against {walked:.1f} walking)',
-          abs(ran - 5.0) < 0.1 and walked < ran)
+          abs(ran - expected(5.0, 1)) < 0.1 and walked < ran)
     fake.lefty = 0.0
 
     print('the buttons:')
@@ -214,11 +221,15 @@ def run_checks(G):
     check(f'clicking it says so ({spoken[-1]!r})', spoken[-1] == 'Running.')
     check('and the pad reports running with nothing held', G['read']()[3] is True)
     fake.lefty = 1.0
-    check(f'so you run without holding anything ({walk_for(1):.1f} m in a second)',
-          abs(walk_for(1) - 5.0) < 0.1)
+    latched = walk_for(1)
+    check(f'so you run without holding anything ({latched:.1f} m in a second, '
+          f'{expected(5.0, 1):.1f} expected with the ramp)',
+          abs(latched - expected(5.0, 1)) < 0.1)
     G['_on_button'](fake, 'leftstick')
-    check(f'clicking again walks ({spoken[-1]!r}, {walk_for(1):.1f} m)',
-          spoken[-1] == 'Walking.' and abs(walk_for(1) - 2.0) < 0.1)
+    unlatched = walk_for(1)
+    check(f'clicking again walks ({spoken[-1]!r}, {unlatched:.1f} m against '
+          f'{latched:.1f} running)',
+          spoken[-1] == 'Walking.' and abs(unlatched - expected(2.0, 1)) < 0.1)
     G['_on_button'](fake, 'leftstick')
     G['reset_world']()
     check('and a new park never starts you running', G['read']()[3] is False)
@@ -263,6 +274,7 @@ def run_checks(G):
     fake.lefty = 1.0
     fake.rightx = 1.0
     G['resume_game']()
+    G['_speed'] = 0.0                          # not coasting from the last check
     player.update(x=0.0, y=0.0, yaw=0.0)
     frames(60)
     check('with Controller off, a pushed stick does nothing',
@@ -277,8 +289,8 @@ def run_checks(G):
     settings['walk_speed'] = 2.0
     by_key = walk_for(1)
     keys.on_key_release(key.W, 0)
-    check(f'W still walks at the full walk speed ({by_key:.2f} m in a second)',
-          abs(by_key - 2.0) < 0.05)
+    check(f'W still walks at the walk speed ({by_key:.2f} m in a second)',
+          abs(by_key - expected(2.0, 1)) < 0.05)
 
     G['_controller'] = None
 

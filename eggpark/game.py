@@ -193,6 +193,8 @@ _next_basket_chime_at = 0.0
 _next_chest_chime_at = 0.0
 _next_origin_chime_at = 0.0
 _dist_since_step = 0.0  # accumulates walked meters; fires footstep at STEP_DISTANCE
+_speed = 0.0            # metres a second, right now: speed builds and fades
+_move_dir = (1.0, 0.0)  # the way you are going, kept so a stop coasts
 _clock_start = time.monotonic()
 
 
@@ -202,7 +204,7 @@ def now():
 
 def update(dt):
     global _next_egg_call_at, _next_basket_chime_at, _next_origin_chime_at, _dist_since_step
-    global _next_chest_chime_at
+    global _next_chest_chime_at, _speed, _move_dir
 
     # Settings screen pauses the world entirely — no movement, no ticks,
     # no calls. Hatch timers don't advance, so opening settings mid-game
@@ -239,31 +241,59 @@ def update(dt):
     # plays exactly as it did; a stick can ask for a slow walk, which is what
     # makes a fine approach possible at all.
     push = min(1.0, math.hypot(move_forward, move_right))
+    running = keys[key.LSHIFT] or keys[key.RSHIFT] or pad_running
+    top_speed = prefs.settings['run_speed'] if running else prefs.settings['walk_speed']
+
+    # SPEED BUILDS. It used to snap: the instant running switched on you were
+    # simply going 5 m/s instead of 2, and the only thing that changed in your
+    # ears was the footstep rate — which barely moved, because a running
+    # stride is longer. So running did not feel like running, which is exactly
+    # how it was reported.
+    #
+    # Now there is momentum. Asking for more speed takes ACCELERATION metres
+    # per second per second to arrive, letting go takes BRAKING to stop, and
+    # the wind rises with the speed you actually have (see sounds.update_wind).
+    # Getting faster is something you can hear happening rather than a number
+    # that changed.
     if push > 0.001:
         dx = math.cos(state.player['yaw']) * move_forward + math.sin(state.player['yaw']) * move_right
         dy = math.sin(state.player['yaw']) * move_forward - math.cos(state.player['yaw']) * move_right
         length = math.hypot(dx, dy)
-        running = keys[key.LSHIFT] or keys[key.RSHIFT] or pad_running
-        top_speed = prefs.settings['run_speed'] if running else prefs.settings['walk_speed']
-        walk_speed = top_speed * push
-        stride = config.RUN_STEP_DISTANCE if running else config.STEP_DISTANCE
-        state.player['x'] += (dx / length) * walk_speed * dt
-        state.player['y'] += (dy / length) * walk_speed * dt
+        # Where you are heading, kept so that letting go coasts to a stop in
+        # the direction you were going rather than stopping dead.
+        _move_dir = (dx / length, dy / length)
+        target = top_speed * push
+    else:
+        target = 0.0
+
+    rate = config.ACCELERATION if target > _speed else config.BRAKING
+    _speed += max(-rate * dt, min(rate * dt, target - _speed))
+    if _speed < 0.01:
+        _speed = 0.0
+
+    if _speed > 0.0:
+        state.player['x'] += _move_dir[0] * _speed * dt
+        state.player['y'] += _move_dir[1] * _speed * dt
 
         # Footstep cadence: accumulate walked distance, fire each time we
-        # cross STEP_DISTANCE. Tying cadence to distance (not time) means
-        # adjusting walk_speed naturally changes step rate. Toggle-off
-        # still ticks the counter so re-enabling mid-walk doesn't burst.
-        _dist_since_step += walk_speed * dt
+        # cross a stride. Tying cadence to distance (not time) means the step
+        # rate follows the speed you are actually going, ramp included.
+        # Toggle-off still ticks the counter so re-enabling mid-walk doesn't
+        # burst.
+        stride = config.RUN_STEP_DISTANCE if running else config.STEP_DISTANCE
+        _dist_since_step += _speed * dt
         if _dist_since_step >= stride:
             _dist_since_step -= stride
             if prefs.settings['enable_footsteps']:
                 sounds.fire_footstep()
     else:
-        # Standing still — reset so we don't fire a half-step the moment
-        # the player starts moving again. Each fresh walk gets a full
-        # stride before the first footstep.
+        # Stopped — reset so we don't fire a half-step the moment the player
+        # starts moving again. Each fresh walk gets a full stride first.
         _dist_since_step = 0.0
+
+    # The wind: how fast you are going, as a sound. Its loudest is the run
+    # speed, so a walk is a whisper of it and a sprint is unmistakable.
+    sounds.update_wind(dt, _speed, prefs.settings['run_speed'])
 
     sounds.update_listener()
 

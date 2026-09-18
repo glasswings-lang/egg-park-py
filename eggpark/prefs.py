@@ -53,6 +53,7 @@ _VOLUME_CATEGORIES = [
     ('vol_scan_chest_ping',  'Volume: scan chest pings',  1.0),
     ('vol_wild_bird_flyoff', 'Volume: wild bird flyoff',  1.0),
     ('vol_footstep',         'Volume: footsteps',         1.0),
+    ('vol_wind',             'Volume: wind',              1.0),
     ('vol_egg_warning',      'Volume: egg warning',       1.0),
     ('vol_scan_start',       'Volume: scan start',        1.0),
     ('vol_bird_ambient',     'Volume: bird ambient',      1.0),
@@ -143,6 +144,9 @@ SETTINGS_MENU = [
     {'key': 'enable_chest_chimes',    'label': 'Chest chimes',    'kind': 'bool', 'default': True},
     {'key': 'enable_bird_calls',      'label': 'Bird calls',      'kind': 'bool', 'default': True},
     {'key': 'enable_footsteps',       'label': 'Footsteps',       'kind': 'bool', 'default': True},
+    # The speed cue. Off is silence while you move, which is how it was
+    # before this existed.
+    {'key': 'enable_wind',            'label': 'Wind while moving', 'kind': 'bool', 'default': True},
     {'key': 'enable_egg_warnings',    'label': 'Egg warnings',    'kind': 'bool', 'default': True},
     {'key': 'enable_bird_ambient',    'label': 'Bird ambient',    'kind': 'bool', 'default': True},
     {'key': 'enable_ambience',        'label': 'Ambience',        'kind': 'bool', 'default': True},

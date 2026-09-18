@@ -472,6 +472,25 @@ you like; the engine plays them at the right positions.
   - `footstep-chest-2.wav`
   - `footstep-chest-3.wav`
 
+### `wind` — 1 file (loops)
+- **Trigger**: Plays whenever you are moving, and only then. Its loudness
+  and pitch follow your actual speed: silent standing still, a whisper at a
+  walk, unmistakable at a full run. Loudest at the run speed.
+- **Spatial**: no (rides with you, like the ambience bed).
+- **Duration**: any length, but **it loops** — the start and end have to
+  blend, so record longer than you think and pick a clean stretch.
+- **Character**: Air moving past you because YOU are moving. Not weather,
+  not a gust: steady, soft, no gritty top end. Low-passed at 900 Hz in the
+  built-in one, which is above the ambience bed (200 Hz) and below the
+  footsteps (5 kHz) — the same window the wingbeats sit in.
+- **Why it exists**: speed had no sound of its own. Running showed up only
+  as footstep cadence, and barely, because a running stride is longer — so
+  five metres a second sounded much like two, and running did not feel like
+  running. The game also accelerates now rather than snapping between
+  speeds, so this swells over about half a second instead of switching on.
+- **Files** (1):
+  - `wind.wav`
+
 ### `egg-warning` — 2 variants
 - **Trigger**: Fires once per second on any held or basketed egg whose
   hatch timer is in its last 5 seconds. Same sample plays from the

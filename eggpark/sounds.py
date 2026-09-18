@@ -589,7 +589,7 @@ _SAMPLE_CATEGORIES = (
     'chest-chime', 'chest-chime-found', 'chest-discover', 'scan-chest-ping',
     'footstep', 'footstep-basket', 'footstep-chest',
     'egg-warning', 'scan-start', 'bird-ambient', 'fumble',
-    'boot', 'menu-open', 'menu-close', 'ambience', 'origin',
+    'boot', 'menu-open', 'menu-close', 'ambience', 'origin', 'wind',
 )
 
 # Each category stores as [StaticSource, ...] — flat list of variants.
@@ -1327,6 +1327,9 @@ SOUND_CATALOGUE = [
     ('footstep-basket', 'Footstep on a basket',
      'Your feet while stood ON a basket. This is how you know F will work.',
      lambda: _footstep_basket_source),
+    ('wind', 'Wind, as you move',
+     'Rises with how fast you are going, and is silent when you stand still.',
+     lambda: _wind_source),
     ('footstep-chest', 'Footstep on a chest',
      'Your feet while stood ON a chest. A lower, heavier knock than a basket.',
      lambda: _footstep_chest_source),
@@ -1500,6 +1503,79 @@ def _sync_ambience():
 
 
 # ============================================================================
+# Wind — how fast you are going, as a sound
+# ============================================================================
+#
+# Running used to be a number changing. Speed showed up only as footstep
+# cadence, and barely: a running stride is longer, so five metres a second
+# sounded much like two. "That's not running" was the report, and it was
+# right.
+#
+# So there is wind. One quiet loop whose loudness and pitch follow the speed
+# you actually have, with its loudest at the run speed — a walk is a whisper
+# of it, a sprint is unmistakable, and standing still is silence. Together
+# with the acceleration in game.update it means getting faster is something
+# you hear arrive, over half a second, rather than a step change.
+#
+# Low-passed at WIND_CUTOFF_HZ, in the same window as the wingbeats: above
+# the ambience bed (200 Hz), below the footsteps (5 kHz). Unfiltered noise at
+# this volume, constantly, would be the compressed-air mistake all over again.
+_wind_source = _make_lowpass_noise_source(config.WIND_LOOP_SECONDS,
+                                          config.WIND_CUTOFF_HZ)
+_wind_player = None
+_wind_level = 0.0        # 0..1, smoothed, what you can hear right now
+
+
+def wind_level():
+    """What the wind is doing, 0 to 1. For tests and for the status line."""
+    return _wind_level
+
+
+def update_wind(dt, speed, top_speed):
+    """Follow the player's speed. Called every frame from game.update."""
+    global _wind_player, _wind_level
+    enabled = prefs.settings.get('enable_wind', True)
+    share = 0.0 if not enabled else min(1.0, speed / max(0.1, top_speed))
+    target = share ** config.WIND_SPEED_CURVE
+    # Follow speed smoothly: the wind should swell and fall away, not snap
+    # frame to frame, and this is also what stops a stick jiggle flickering it.
+    _wind_level += (target - _wind_level) * min(1.0, dt * config.WIND_SMOOTHING)
+    if _wind_level < 0.002:
+        _wind_level = 0.0
+
+    if _wind_level <= 0.0:
+        if _wind_player is not None:
+            # Silence it before pausing, not just pause it: a paused player
+            # that still holds its old volume comes back at that volume, so
+            # switching the wind off and then moving again would pop.
+            _wind_player._eggpark_base_volume = 0.0
+            _wind_player.volume = 0.0
+            if _wind_player.playing:
+                _wind_player.pause()
+        return
+    if _wind_player is None:
+        try:
+            _wind_player = pyglet.media.Player()
+            _wind_player.queue(pick_source('wind', fallback=_wind_source))
+            _wind_player.loop = True
+            _wind_player.min_distance = config.SOURCE_MIN_DISTANCE
+            _wind_player.max_distance = config.SOURCE_MAX_DISTANCE
+        except Exception as exc:
+            speech.log_event(f'COULD NOT START THE WIND: {exc}')
+            _wind_player = None
+            return
+    base = (config.WIND_MAX_VOLUME * _wind_level
+            * prefs.settings['master_volume'] * prefs.settings.get('vol_wind', 1.0))
+    _wind_player._eggpark_base_volume = base
+    _wind_player._eggpark_category = 'wind'
+    _wind_player.volume = base * duck_factor('wind')
+    _wind_player.pitch = 1.0 + config.WIND_PITCH_RISE * _wind_level
+    _wind_player.position = (state.player['x'], state.player['y'], state.player['z'])
+    if not _wind_player.playing:
+        _wind_player.play()
+
+
+# ============================================================================
 # Listener
 # ============================================================================
 
@@ -1517,6 +1593,8 @@ def update_listener():
     # _play calls snap to the listener at fire time, but the ambience
     # source needs its position updated every frame so the bed follows
     # the player around the world instead of staying at the spawn point.
+    if _wind_player is not None:
+        _wind_player.position = pos
     if _ambience_player is not None:
         _ambience_player.position = pos
         base = getattr(_ambience_player, '_eggpark_base_volume', None)

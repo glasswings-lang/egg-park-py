@@ -204,6 +204,7 @@ python tests/test_big_park.py       # 12,000 eggs and 250 birds still run smooth
 python tests/test_duck.py           # the park quietens while the scan answers
 python tests/test_pad.py            # the controller: sticks, buttons, menus
 python tests/test_pad_live.py       # boots with a REAL pad on pyglet's own loop
+python tests/test_speed.py          # speed builds, and wind rises with it
 ```
 
 Plain Python, no pytest. The first two read the game's code as text rather

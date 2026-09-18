@@ -54,8 +54,15 @@ def run_checks(G):
     steps = []
     G['fire_footstep'] = lambda *a, **k: steps.append(1)
 
+    # Speed builds now (see test_speed.py), so a walk of T seconds covers
+    # top * T minus the ground lost while getting up to speed. Every check
+    # below starts from a standstill and allows for that ramp.
+    def expected(top, seconds):
+        return top * seconds - top * top / (2 * G['ACCELERATION'])
+
     def walk(seconds, shift):
         steps.clear()
+        G['_speed'] = 0.0
         player.update(x=0.0, y=0.0, yaw=0.0)
         keys.on_key_press(key.W, 0)
         if shift:
@@ -69,13 +76,16 @@ def run_checks(G):
     walked, walk_steps = walk(10, False)
     ran, run_steps = walk(10, True)
     check(f'walking: {walked:.1f} m in 10 s, {walk_steps} steps',
-          abs(walked - G['settings']['walk_speed'] * 10) < 0.5 and 18 <= walk_steps <= 20)
-    check(f'running: {ran:.1f} m in 10 s', abs(ran - G['settings']['run_speed'] * 10) < 0.5)
+          abs(walked - expected(G['settings']['walk_speed'], 10)) < 0.5
+          and 18 <= walk_steps <= 20)
+    check(f'running: {ran:.1f} m in 10 s',
+          abs(ran - expected(G['settings']['run_speed'], 10)) < 0.5)
     check(f'running steps are quicker but not a drumroll ({run_steps / 10:.1f} a second, '
           f'walking {walk_steps / 10:.1f})', walk_steps < run_steps < 35)
     G['settings']['run_speed'] = 8.0
     ran, _ = walk(5, True)
-    check(f'run speed setting is honoured ({ran:.1f} m in 5 s at 8 m/s)', abs(ran - 40) < 0.5)
+    check(f'run speed setting is honoured ({ran:.1f} m in 5 s at 8 m/s)',
+          abs(ran - expected(8.0, 5)) < 0.5)
     check('Shift on its own does nothing the game has to handle',
           G['on_key_press'](key.LSHIFT, 0) is None)
 
