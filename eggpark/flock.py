@@ -150,10 +150,31 @@ def tick_hatching(dt):
 def tick_birds(dt):
     now_t = time.monotonic()
     for bird in state.birds:
-        # Wander. Random-walk angle drift + forward motion.
-        bird['wander_angle'] += random.uniform(-0.5, 0.5) * dt
-        dx = math.cos(bird['wander_angle']) * config.BIRD_WANDER_SPEED * dt
-        dy = math.sin(bird['wander_angle']) * config.BIRD_WANDER_SPEED * dt
+        # Flights: every so often a bird takes off and crosses its range in a
+        # straight line, then goes back to wandering. This is what makes a
+        # flock sound alive — something passing you is far more legible than
+        # something drifting, and the rustle it fires on the way reads as
+        # wings rather than as an object sliding about.
+        flying_until = bird.get('flying_until', 0.0)
+        if now_t >= bird.get('next_flight_at', 0.0):
+            bird['flying_until'] = now_t + random.uniform(
+                config.BIRD_FLIGHT_MIN_LENGTH, config.BIRD_FLIGHT_MAX_LENGTH)
+            bird['next_flight_at'] = bird['flying_until'] + random.uniform(
+                config.BIRD_FLIGHT_MIN_INTERVAL, config.BIRD_FLIGHT_MAX_INTERVAL)
+            # A new heading for the flight, and a rustle as it goes.
+            bird['wander_angle'] = random.uniform(0.0, 2.0 * math.pi)
+            if prefs.settings['enable_bird_ambient']:
+                tally.RUSTLE.add((bird['x'], bird['y'], bird['z']))
+            flying_until = bird['flying_until']
+        flying = now_t < flying_until
+        speed = config.BIRD_FLIGHT_SPEED if flying else config.BIRD_WANDER_SPEED
+
+        # Wander. Random-walk angle drift + forward motion. A bird in flight
+        # holds its line; a bird pottering about wobbles.
+        if not flying:
+            bird['wander_angle'] += random.uniform(-0.5, 0.5) * dt
+        dx = math.cos(bird['wander_angle']) * speed * dt
+        dy = math.sin(bird['wander_angle']) * speed * dt
         nx = bird['x'] + dx
         ny = bird['y'] + dy
         # Stay within wander radius of home — if drifting too far, turn back.

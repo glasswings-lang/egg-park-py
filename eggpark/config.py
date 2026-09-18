@@ -56,6 +56,10 @@ EGG_SPAWN_MAX = 90.0
 EGG_MIN_SEPARATION = 30.0   # from every other egg lying in the world
 EGG_MIN_FROM_PLAYER = 20.0  # never appears underfoot
 EGG_PLACE_ATTEMPTS = 40     # then settle for the most isolated spot tried
+# When no try is free, this many of them are measured exactly to find the
+# roomiest. Exact measurement is what keeps eggs apart in a full park; doing
+# it for all 40 is what used to stall the game. See world._place_egg.
+EGG_FALLBACK_CANDIDATES = 8
 
 # Baskets
 BASKET_AUDIBLE = 80.0
@@ -177,8 +181,23 @@ LAY_CLUTCHES_PER_FRAME = 1
 WILD_BIRD_DISPERSAL = 1.5
 BIRD_CALL_MIN_INTERVAL = 8.0
 BIRD_CALL_MAX_INTERVAL = 16.0
-BIRD_WANDER_RADIUS = 10.0
-BIRD_WANDER_SPEED = 0.4
+# How birds move about. They used to shuffle inside 10 m of home at 0.4 m/s,
+# which is slower than you walk: less "birds in a park" and more "birds
+# pacing on a doorstep", and it was noticed as exactly that.
+#
+# Now they range much further and at a believable speed, and now and then one
+# takes off across its range in a straight line for a few seconds, so the
+# flock is something that moves around you rather than a set of fixed
+# landmarks. A bird still belongs to its basket and still comes back: eggs
+# are laid near home, so a bird that wandered away forever would take the
+# park's supply with it.
+BIRD_WANDER_RADIUS = 35.0
+BIRD_WANDER_SPEED = 1.2
+BIRD_FLIGHT_SPEED = 4.0        # a burst across its range, faster than you walk
+BIRD_FLIGHT_MIN_INTERVAL = 12.0
+BIRD_FLIGHT_MAX_INTERVAL = 40.0
+BIRD_FLIGHT_MIN_LENGTH = 1.0   # seconds in the air
+BIRD_FLIGHT_MAX_LENGTH = 3.0
 
 # How far away a bird can be heard. OpenAL's default distance rule, which
 # pyglet never changes, only fades a sound until max_distance (80 m) and

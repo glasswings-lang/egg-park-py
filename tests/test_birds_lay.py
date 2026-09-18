@@ -287,6 +287,54 @@ def run_checks(G):
           and played[-1]['volume'] == 0.5)
     settings['hatch_time'] = 30.0
 
+    print('birds move about the park, rather than pacing a doorstep:')
+    # They used to wander inside 10 m of home at 0.4 m/s, slower than you
+    # walk, and it was noticed from play as birds that never went anywhere.
+    settings['enable_bird_laying'] = False
+    home = fresh_park()
+    birds.clear()
+    for _ in range(12):
+        G['make_your_bird'](home)
+    starts = [(b['x'], b['y']) for b in birds]
+    far, moved, flight_frames = 0.0, 0.0, 0
+    for _ in range(60 * 60):                   # a minute of bird time
+        before = [(b['x'], b['y']) for b in birds]
+        G['tick_birds'](1 / 60)
+        for (bx, by), b in zip(before, birds):
+            step = math.hypot(b['x'] - bx, b['y'] - by) * 60      # metres a second
+            moved = max(moved, step)
+            if step > G['BIRD_WANDER_SPEED'] * 1.5:
+                flight_frames += 1
+        for b in birds:
+            far = max(far, math.hypot(b['x'] - b['home_x'], b['y'] - b['home_y']))
+    from_start = max(math.hypot(b['x'] - sx, b['y'] - sy)
+                     for (sx, sy), b in zip(starts, birds))
+    check(f'a bird gets properly away from its basket ({far:.0f} m of a '
+          f'{G["BIRD_WANDER_RADIUS"]:.0f} m range)', far > 8.0)
+    check(f'and ends up somewhere else entirely ({from_start:.0f} m from where it started)',
+          from_start > 5.0)
+    check(f'none of them leaves its range ({far:.0f} m, limit {G["BIRD_WANDER_RADIUS"]:.0f})',
+          far <= G['BIRD_WANDER_RADIUS'] + 1.0)
+    check(f'they take flights, faster than they potter ({moved:.1f} m/s at the '
+          f'quickest, pottering is {G["BIRD_WANDER_SPEED"]:.1f})',
+          moved > G['BIRD_WANDER_SPEED'] * 2)
+    # Flight length and spacing are on the real clock, and this test runs a
+    # simulated minute in about a real second, so counting how much of the
+    # minute was spent flying would measure the test, not the game. The two
+    # speeds are checked directly instead: a bird told not to fly potters.
+    for b in birds:
+        b['flying_until'] = 0.0
+        b['next_flight_at'] = float('inf')
+    pottering = 0.0
+    for _ in range(120):
+        before = [(b['x'], b['y']) for b in birds]
+        G['tick_birds'](1 / 60)
+        for (bx, by), b in zip(before, birds):
+            pottering = max(pottering, math.hypot(b['x'] - bx, b['y'] - by) * 60)
+    check(f'and a bird that is not flying potters at {pottering:.1f} m/s, '
+          f'not {moved:.1f}', abs(pottering - G['BIRD_WANDER_SPEED']) < 0.05)
+    settings['enable_bird_laying'] = True
+
     print('a bird leaving sounds like wings, not compressed air:')
     # It was 1.5 s of raw white noise, and it was reported as sounding like a
     # can of compressed air. Two faults: all the energy in the treble, where

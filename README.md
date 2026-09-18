@@ -141,16 +141,26 @@ walks you slowly up to an egg.
 | | |
 | --- | --- |
 | **Left stick** | Walk, any direction. How far you push is how fast you go |
+| **Click left stick** | Run — a toggle, so nothing to hold |
 | **Right stick** | Turn, proportionally |
-| **Right trigger** | Hold to run |
+| **Right trigger** | Hold to run, for as long as you hold it |
 | **A** | Scan |
 | **B** | Deposit |
 | **X** | Your status |
-| **Y** | Read out the controller controls |
+| **Y**, tapped | Read out the controller controls |
 | **D-pad up / down** | Lead to a found / unfound basket |
 | **D-pad right / left** | Lead to a found / unfound chest |
+| **Hold Y + D-pad** | Ask: heading / carrying / the park / everything |
 | **Bumpers** | Volume down / up |
 | **Start / Back** | Main menu / settings |
+
+The shape of this follows [Periphery Synthetic's
+manual](https://periphery-synthetic-ep.shiftbacktick.io/manual.html) — left
+stick moves, right stick turns, **A** scans and confirms, **B** acts and goes
+back, **Start** opens the menu, sprint is on the stick click rather than a
+held trigger, and holding **Y** turns the D-pad into questions instead of
+actions. Holding a trigger while pushing a stick is the grip that hurts, and
+the pad is here because the keyboard hurt.
 
 In any menu the stick or D-pad moves the focus, **A** picks and **B** goes
 back, so a session never has to start at the keyboard. A held stick is one

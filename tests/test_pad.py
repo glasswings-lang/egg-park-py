@@ -167,7 +167,8 @@ def run_checks(G):
     check('Back opens settings', press('back') == ['open_settings'])
     fired.clear()
     G['_on_button'](fake, 'y')
-    check(f'Y reads out the controller controls ({spoken[-1][:28]!r}...)',
+    G['_on_release'](fake, 'y')
+    check(f'tapping Y reads out the controller controls ({spoken[-1][:28]!r}...)',
           'Left stick walks' in spoken[-1])
 
     print('the D-pad leads you places:')
@@ -187,6 +188,41 @@ def run_checks(G):
     check('right: a chest you have found', dpad(x=1) == ['try_scan_found_chests'])
     check('left: a chest you have not', dpad(x=-1) == ['try_scan_unfound_chests'])
     check('letting go does nothing', dpad() == [])
+
+    print('holding Y asks questions instead, like Periphery does:')
+    for name in ('announce_heading', 'announce_carrying', 'announce_park'):
+        real[name] = G[name]
+        G[name] = (lambda n: lambda *a, **k: fired.append(n))(name)
+    G['_on_button'](fake, 'y')                 # held
+    check('Y and up: which way am I facing', dpad(y=1) == ['announce_heading'])
+    check('Y and down: what am I carrying', dpad(y=-1) == ['announce_carrying'])
+    check('Y and left: what is in this park', dpad(x=-1) == ['announce_park'])
+    check('Y and right: everything', dpad(x=1) == ['announce_status'])
+    spoken.clear()
+    G['_on_release'](fake, 'y')
+    check('and letting Y go after using it does NOT also read the controls',
+          not spoken)
+    check('with Y let go, the D-pad leads you places again',
+          dpad(y=1) == ['try_scan_found_baskets'])
+
+    print('run is a toggle on the left stick click:')
+    G['forget_run']()
+    settings['walk_speed'] = 2.0
+    settings['run_speed'] = 5.0
+    spoken.clear()
+    G['_on_button'](fake, 'leftstick')
+    check(f'clicking it says so ({spoken[-1]!r})', spoken[-1] == 'Running.')
+    check('and the pad reports running with nothing held', G['read']()[3] is True)
+    fake.lefty = 1.0
+    check(f'so you run without holding anything ({walk_for(1):.1f} m in a second)',
+          abs(walk_for(1) - 5.0) < 0.1)
+    G['_on_button'](fake, 'leftstick')
+    check(f'clicking again walks ({spoken[-1]!r}, {walk_for(1):.1f} m)',
+          spoken[-1] == 'Walking.' and abs(walk_for(1) - 2.0) < 0.1)
+    G['_on_button'](fake, 'leftstick')
+    G['reset_world']()
+    check('and a new park never starts you running', G['read']()[3] is False)
+    fake.lefty = 0.0
 
     print('volume, on the bumpers:')
     settings['master_volume'] = 1.0

@@ -383,6 +383,37 @@ def nearest_audible_basket():
 # Status announcements
 # ============================================================================
 
+def announce_heading():
+    """Just the heading. On the pad, hold Y and press D-pad up.
+
+    Short on purpose: when you only want to know which way you are pointing,
+    the full status line is four sentences of things you did not ask about,
+    and with a screen reader that is four sentences you have to sit through.
+    """
+    speech.say(f'Heading {math.degrees(state.player["yaw"]) % 360:.0f} degrees.')
+
+
+def announce_carrying():
+    """What is in your hands, and how much more will fit."""
+    held, cap = len(state.held), world.player_carry_cap()
+    reach = world.collect_radius()
+    line = f'{held} of {cap} held.'
+    if state.progress['nets']:
+        line += f' Picking up eggs from {reach:g} metres.'
+    speech.say(line)
+
+
+def announce_park():
+    """The park itself: what you have found and what lives in it."""
+    parts = [f'{world.discovered_count()} baskets found']
+    if world.chests_found():
+        parts.append(f'{world.chests_found()} chests found')
+    if state.birds:
+        parts.append(f'{len(state.birds)} birds')
+    parts.append(f'{len(state.eggs)} eggs lying about')
+    speech.say('. '.join(parts) + '.')
+
+
 def announce_status():
     """Speak heading, nearest item, capacities, counts. Bound to P."""
     heading_deg = math.degrees(state.player['yaw']) % 360

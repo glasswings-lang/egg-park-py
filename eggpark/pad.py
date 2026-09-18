@@ -7,21 +7,38 @@ so every correction overshoots and you swing about. A stick is analog. Push
 it a little and you turn a little. That is not a convenience, it is the
 difference between aiming and flailing.
 
-WHAT IS WHERE.
+WHAT IS WHERE. The shape of this follows Periphery Synthetic, which is the
+audio game that has thought hardest about a pad: left stick to move, right
+stick to turn, A to scan and to confirm, B for the thing in front of you and
+for "back", Start for the menu, and — the good idea worth borrowing — HOLD Y
+to turn the D-pad into questions rather than actions.
   Left stick    walk. Any direction, and how far you push is how fast you go.
+  Click it      run, as a toggle. Stays on until you click again.
   Right stick   turn, left and right. A nudge is a nudge.
-  Right trigger hold to run, like Shift.
+  Right trigger hold to run, for as long as you hold it. The same as Shift.
   A             scan (Space)
   B             deposit (F)
-  X             say where you are and what you have (P)
-  Y             read out the controls (H)
+  X             your full status (P)
+  Y (tap)       read out the controls (H)
   D-pad up      lead me to a basket I have found, with room (B)
   D-pad down    lead me to a basket I have not found (V)
   D-pad right   lead me to a chest I have found, with room (C)
   D-pad left    lead me to a chest I have not found (Shift+C)
+  HOLD Y, then
+    D-pad up    which way am I facing
+    D-pad down  what am I carrying
+    D-pad left  what is in this park
+    D-pad right my full status
   Bumpers       volume down and up ([ and ])
   Start         the main menu (Escape)
   Back          settings (O)
+
+WHY RUN IS ON THE STICK CLICK. It was only on the right trigger, and holding
+a trigger down while pushing a stick is the exact grip that hurts — the pad
+exists here because the keyboard hurt. Periphery puts its turbo on the stick
+click, so that is where run goes, and as a toggle rather than a hold: press
+once, run until you press again. The trigger still works for anyone who
+wants it.
 
 IN MENUS the same buttons do the obvious thing rather than nothing, or you
 would have to put the pad down to start the game: D-pad or left stick moves
@@ -88,7 +105,8 @@ def _use(controller):
         from eggpark import speech
         speech.log_event(f'could not open controller {controller.name!r}: {exc}')
         return False
-    controller.push_handlers(on_button_press=_on_button, on_dpad_motion=_on_dpad)
+    controller.push_handlers(on_button_press=_on_button, on_button_release=_on_release,
+                             on_dpad_motion=_on_dpad)
     _controller = controller
     from eggpark import speech
     speech.log_event(f'controller in use: {controller.name}')
@@ -116,6 +134,27 @@ def _on_disconnect(controller):
 
 def connected():
     return _controller is not None
+
+
+# Run, as a toggle: clicking the left stick turns it on and leaves it on.
+# Nothing to hold down.
+_running_latched = False
+
+# Whether Y is being held. Held Y turns the D-pad into questions — see the
+# module docstring. Tapping Y (pressed and released without the D-pad) reads
+# the controls out, so the modifier is still discoverable by pressing it.
+_y_held = False
+_y_used_as_modifier = False
+
+
+def running_latched():
+    return _running_latched
+
+
+def forget_run():
+    """Stop running. For a new park, so a toggle cannot survive one."""
+    global _running_latched
+    _running_latched = False
 
 
 # ---------------------------------------------------------------- reading
@@ -162,7 +201,8 @@ def read():
         # the left, so this is negated. Getting this backwards is the kind of
         # mistake that is obvious in play and invisible in code.
         turn = -_curved(_controller.rightx, turn_curve())
-        running = _controller.righttrigger > config.PAD_TRIGGER_THRESHOLD
+        running = (_running_latched
+                   or _controller.righttrigger > config.PAD_TRIGGER_THRESHOLD)
     except Exception:
         return 0.0, 0.0, 0.0, False
     return forward, right, turn, running
@@ -251,6 +291,25 @@ def _on_dpad(controller, vector):
         elif (left or right) and prefs._in_settings:
             prefs.settings_change(1 if right else -1)
         return
+    if _y_held:
+        # Held Y turns the D-pad into questions. Borrowed from Periphery
+        # Synthetic, where holding Y and pressing a direction announces your
+        # coordinates or heading: asking the game something and telling it to
+        # do something are different, and they should not share a button.
+        global _y_used_as_modifier
+        from eggpark import game
+        if up:
+            game.announce_heading()
+        elif down:
+            game.announce_carrying()
+        elif left:
+            game.announce_park()
+        elif right:
+            game.announce_status()
+        else:
+            return
+        _y_used_as_modifier = True
+        return
     if up:
         scan.try_scan_found_baskets()
     elif down:
@@ -261,8 +320,37 @@ def _on_dpad(controller, vector):
         chests.try_scan_unfound_chests()
 
 
+def _on_release(controller, name):
+    """Y is the only button that does anything on release: tapping it reads
+    the controls out, but only if it was not being held as the modifier."""
+    global _y_held, _y_used_as_modifier
+    if name != 'y':
+        return
+    _y_held = False
+    if not _y_used_as_modifier:
+        from eggpark import menu, prefs, soundtest
+        if not (menu._in_main_menu or prefs._in_settings or soundtest._in_sound_test):
+            speak_pad_controls()
+    _y_used_as_modifier = False
+
+
 def _on_button(controller, name):
+    global _y_held, _running_latched
     from eggpark import chests, game, menu, prefs, scan, soundtest, sounds, world
+
+    if name == 'y' and not (menu._in_main_menu or prefs._in_settings
+                            or soundtest._in_sound_test):
+        # Held, not pressed: the D-pad decides what it meant, and the release
+        # reads the controls out if nothing else used it.
+        _y_held = True
+        return
+    if name == 'leftstick' and not (menu._in_main_menu or prefs._in_settings
+                                    or soundtest._in_sound_test):
+        # Run, as a toggle. Announced, because a mode you cannot see is a
+        # mode you have to remember you are in.
+        _running_latched = not _running_latched
+        _speak('Running.' if _running_latched else 'Walking.')
+        return
 
     # Menus first, exactly as the keyboard handler does: settings can be
     # opened from the menu and the world must not see any of it.
@@ -295,8 +383,6 @@ def _on_button(controller, name):
         world.try_deposit()
     elif name == 'x':
         game.announce_status()
-    elif name == 'y':
-        speak_pad_controls()
     elif name == 'start':
         menu.open_main_menu()
     elif name == 'back':
@@ -311,11 +397,15 @@ def _on_button(controller, name):
 
 PAD_HELP = (
     'Controller. Left stick walks, and how far you push it is how fast you '
-    'go. Right stick turns, left and right. Hold the right trigger to run. '
-    'A scans. B deposits. X says your status. Y reads this out. '
+    'go. Click the left stick to run, and click it again to stop; holding '
+    'the right trigger runs too. Right stick turns, left and right. '
+    'A scans. B deposits. X says your status. Y on its own reads this out. '
     'On the D-pad: up leads you to a basket you have found with room, '
     'down to a basket you have not found, right to a chest you have found, '
     'left to a chest you have not found. '
+    'Hold Y and press the D-pad to ask instead: up for your heading, '
+    'down for what you are carrying, left for what is in the park, '
+    'right for everything. '
     'The bumpers lower and raise the volume. '
     'Start opens the menu, and Back opens settings. '
     'In a menu, the stick or D-pad moves, A picks, and B goes back.'
