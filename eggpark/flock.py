@@ -51,8 +51,9 @@ def _new_bird(basket):
         'next_call_at': now_t + random.uniform(2.0, 4.0),
         'next_ambient_at': now_t + random.uniform(
             config.BIRD_AMBIENT_MIN_INTERVAL, config.BIRD_AMBIENT_MAX_INTERVAL),
-        # A chest's egg gifts ride along with every bird it hatches.
+        # A chest's egg and clutch gifts ride along with every bird it hatches.
         'clutch_bonus': basket.get('clutch_bonus', 0),
+        'clutches_left': clutches_in_a_life(basket.get('extra_clutches', 0)),
         'lay_timer': prefs.settings['lay_time'],
     }
     state.birds.append(bird)
@@ -227,6 +228,7 @@ def tick_laying(dt):
     # any flock needs, and nothing is skipped — a bird that has to wait a
     # frame or two lays a moment later, which is invisible.
     laid = 0
+    done = []
     for bird in state.birds:
         bird['lay_timer'] = bird.get('lay_timer', prefs.settings['lay_time']) - dt
         if bird['lay_timer'] > 0:
@@ -237,6 +239,23 @@ def tick_laying(dt):
         bird['lay_timer'] = prefs.settings['lay_time']
         lay_clutch(bird)
         laid += 1
+        # Birds from before clutches ran out have no count: they get a plain
+        # bird's roll now, counting this clutch as their first.
+        if 'clutches_left' not in bird:
+            bird['clutches_left'] = clutches_in_a_life(0)
+        bird['clutches_left'] -= 1
+        if bird['clutches_left'] <= 0:
+            done.append(bird)
+    for bird in done:
+        state.birds.remove(bird)
+        tally.BIRD_LEFT.add((bird['x'], bird['y'], bird['z']))
+    if done:
+        world.log_counts(f'{len(done)} bird(s) laid their last clutch and flew off')
+
+
+def clutches_in_a_life(extra):
+    """How many clutches a new bird will lay before it flies off."""
+    return random.randint(config.CLUTCHES_MIN, config.CLUTCHES_MAX) + extra
 
 
 def clutch_size(bird):

@@ -128,7 +128,12 @@ EGG_WARNING = Tally('egg warning', 1.0, 'fire_egg_warning')
 # alive without sounding like static.
 RUSTLE = Tally('bird rustle', 0.7, 'fire_bird_ambient_at')
 
-ALL = (GROUND_FLYOFF, BIRD_HATCHED, EGG_LOST, EGG_WARNING, RUSTLE)
+# Birds that have laid their last clutch and fly away. Scenery, like the
+# ground flyoffs: heard if near, never spoken, because in a big flock it is
+# happening all the time.
+BIRD_LEFT = Tally('bird left', 1.5, 'fire_wild_bird_flyoff')
+
+ALL = (GROUND_FLYOFF, BIRD_HATCHED, EGG_LOST, EGG_WARNING, RUSTLE, BIRD_LEFT)
 
 
 def flush_all(now):

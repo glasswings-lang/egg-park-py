@@ -34,7 +34,7 @@ baskets = [dict(b, eggs=[]) for b in INITIAL_BASKETS]
 held = []
 
 # Chests: see eggpark/chests.py. Each: {x, y, z, discovered, eggs, gifts,
-# clutch_bonus}. None at the start; they appear as you explore.
+# clutch_bonus, extra_clutches}. None at the start; they appear as you explore.
 chests = []
 
 # What chest gifts have added so far, for the whole park. `nets` is how many

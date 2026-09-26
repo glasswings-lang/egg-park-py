@@ -15,16 +15,18 @@ from eggpark import config, scan, sounds, speech, state, world
 # (world.chest_cap), and has three gift slots, rolled once, the moment you
 # find it.
 #
-# Each slot is any mix of three gifts, and every part rolls separately,
+# Each slot is any mix of four gifts, and every part rolls separately,
 # CHEST_GIFT_MIN..CHEST_GIFT_MAX:
-#   eggs     birds that hatch in THIS chest lay that many more per clutch
-#   carry    you can carry that many more eggs, from now on
-#   storage  every basket and chest holds that many more, from now on
+#   eggs      birds that hatch in THIS chest lay that many more per clutch
+#   clutches  birds that hatch in THIS chest lay that many more clutches
+#             before they fly off
+#   carry     you can carry that many more eggs, from now on
+#   storage   every basket and chest holds that many more, from now on
 # On top of the gifts, finding any chest adds one to what baskets and chests
 # hold.
 
-GIFT_KINDS = ('eggs', 'carry', 'storage')
-# Every non-empty mix of the three: seven kinds of slot, equally likely.
+GIFT_KINDS = ('eggs', 'clutches', 'carry', 'storage')
+# Every non-empty mix of the four: fifteen kinds of slot, equally likely.
 SLOT_MIXES = [tuple(k for i, k in enumerate(GIFT_KINDS) if mask >> i & 1)
               for mask in range(1, 2 ** len(GIFT_KINDS))]
 
@@ -96,6 +98,7 @@ def maybe_spawn_chest():
             'eggs': [],
             'gifts': [],
             'clutch_bonus': 0,
+            'extra_clutches': 0,
         })
         return
 
@@ -109,6 +112,10 @@ def gift_speech(totals):
     parts.append(f'Baskets and chests hold {totals["storage"] + 1} more.')
     if totals['eggs']:
         parts.append(f'Birds hatched here lay {totals["eggs"]} more eggs a clutch.')
+    if totals['clutches']:
+        more = totals['clutches']
+        parts.append(f'Birds hatched here lay {more} more clutch{"es" if more != 1 else ""} '
+                     f'before flying off.')
     return ' '.join(parts)
 
 
@@ -126,6 +133,7 @@ def try_discover_chest():
         state.progress['carry_bonus'] += totals['carry']
         state.progress['storage_bonus'] += totals['storage']
         c['clutch_bonus'] = totals['eggs']
+        c['extra_clutches'] = totals['clutches']
         c['net'] = roll_net()
         net_line = ''
         if c['net']:

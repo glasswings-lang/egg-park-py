@@ -43,6 +43,9 @@ def run_checks(G):
 
     # Fixed clutch size for the timing checks, so counts are exact.
     G['CLUTCH_MIN'] = G['CLUTCH_MAX'] = 3
+    # And birds that never run out of clutches, so a bird flying off can't
+    # muddle a count. Running out has its own section at the end.
+    G['CLUTCHES_MIN'] = G['CLUTCHES_MAX'] = 1000
 
     print('a plain bird lays clutches, again and again:')
     settings['lay_time'] = 30.0
@@ -489,6 +492,75 @@ def run_checks(G):
     check(f'carrying boosted to {G["player_carry_cap"]()}: a basket holds {G["basket_cap"]()}',
           G['basket_cap']() >= G['player_carry_cap']())
     G['CARRY_START'] = 1
+
+    print('birds fly off after their last clutch:')
+    settings['enable_ground_hatching'] = False
+    settings['lay_time'] = 30.0
+    G['CLUTCH_MIN'] = G['CLUTCH_MAX'] = 3
+    G['CLUTCHES_MIN'], G['CLUTCHES_MAX'] = 1, 3
+    lives = [G['clutches_in_a_life'](0) for _ in range(3000)]
+    check(f'a plain bird gets {min(lives)}-{max(lives)} clutches', min(lives) == 1 and max(lives) == 3)
+    lives = [G['clutches_in_a_life'](4) for _ in range(3000)]
+    check(f'a bird from a +4 chest gets {min(lives)}-{max(lives)}', min(lives) == 5 and max(lives) == 7)
+    G['CLUTCHES_MIN'] = G['CLUTCHES_MAX'] = 2
+    left_sounds = []
+    G['fire_wild_bird_flyoff'] = lambda position=None: left_sounds.append(position)
+    logged = []
+    G['log_event'] = logged.append
+    home = fresh_park()
+    birds.clear()
+    G['forget_all']()
+    G['hatch_into_your_bird'](home)
+    check('a new bird knows how many clutches it has', birds and birds[0]['clutches_left'] == 2)
+    frames(31)
+    check(f'after one clutch it stays ({len(laid())} eggs, {len(birds)} bird)', len(laid()) == 3 and len(birds) == 1)
+    frames(30)
+    check(f'after its last clutch it flies off ({len(laid())} eggs, {len(birds)} birds)',
+          len(laid()) == 6 and not birds)
+    check(f'you hear it leave, from where it was ({len(left_sounds)} flyoff)',
+          len(left_sounds) == 1 and left_sounds[0] is not None)
+    check('the log says so', any('laid their last clutch and flew off' in line for line in logged))
+    check('its eggs stay behind', len(laid()) == 6)
+    frames(60)
+    check('and nothing more is laid', len(laid()) == 6)
+
+    home = fresh_park()
+    birds.clear()
+    for _ in range(20):
+        G['hatch_into_your_bird'](home)
+    left_sounds.clear()
+    G['forget_all']()
+    frames(62)
+    check(f'twenty birds leaving together are heard as one flyoff, not twenty ({len(left_sounds)})',
+          not birds and 1 <= len(left_sounds) <= 2)
+
+    print('birds from older saves:')
+    home = fresh_park()
+    birds.clear()
+    G['hatch_into_your_bird'](home)
+    del birds[0]['clutches_left']                      # hatched before clutches ran out
+    G['CLUTCHES_MIN'] = G['CLUTCHES_MAX'] = 3
+    frames(31)
+    check(f'an old bird gets a plain count when it first lays, counting that clutch ({birds[0]["clutches_left"] if birds else None} left)',
+          birds and birds[0]['clutches_left'] == 2)
+    frames(60)
+    check('and flies off after the rest', not birds)
+
+    print('saving keeps the count:')
+    G['CLUTCHES_MIN'] = G['CLUTCHES_MAX'] = 3
+    home = fresh_park()
+    birds.clear()
+    G['hatch_into_your_bird'](home)
+    frames(31)
+    G['save_park']('test')
+    G['reset_world']()
+    G['load_park']()
+    check(f'a bird with 2 clutches left still has 2 after loading ({birds[0]["clutches_left"] if birds else None})',
+          birds and birds[0]['clutches_left'] == 2)
+    G['log_event'] = speech_log_event
+    G['fire_wild_bird_flyoff'] = flyoff
+    G['CLUTCHES_MIN'], G['CLUTCHES_MAX'] = 1, 3
+    G['CLUTCH_MIN'], G['CLUTCH_MAX'] = 1, 10
 
     print('the key still works:')
     check('Escape handled', G['on_key_press'](key.ESCAPE, 0) is not None)

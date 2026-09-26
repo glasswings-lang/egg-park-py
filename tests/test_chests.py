@@ -68,7 +68,7 @@ def run_checks(G):
             mixes.add(tuple(sorted(slot)))
             amounts.update(slot.values())
     check('always three slots', len(gifts) == 3)
-    check(f'all seven mixes of eggs, carry and storage turn up ({len(mixes)})', len(mixes) == 7)
+    check(f'all fifteen mixes of eggs, clutches, carry and storage turn up ({len(mixes)})', len(mixes) == 15)
     check(f'every amount is 1 to 5 ({sorted(amounts)})', amounts == {1, 2, 3, 4, 5})
     rolls = [G['roll_gifts']() for _ in range(3000)]
     both = [s for g in rolls for s in g if 'carry' in s and 'storage' in s]
@@ -83,7 +83,8 @@ def run_checks(G):
           chest0 == 5 + 2 * 2)
     c = chest_at(100.0, 0.0)
     G['roll_net'] = lambda: False          # nets: see test_nets.py
-    G['roll_gifts'] = lambda: [{'carry': 3},{'storage': 2, 'eggs': 4}, {'eggs': 1, 'carry': 1, 'storage': 5}]
+    G['roll_gifts'] = lambda: [{'carry': 3}, {'storage': 2, 'eggs': 4, 'clutches': 2},
+                               {'eggs': 1, 'carry': 1, 'storage': 5, 'clutches': 1}]
     P.update(x=100.0 - 7.2, y=0.0)
     G['try_discover_chest']()
     check('7.2 m away: not found yet', not c['discovered'])
@@ -98,9 +99,15 @@ def run_checks(G):
           f'({basket0} -> {G["basket_cap"]()})', G['basket_cap']() == max(2, 5) + 8)
     check(f'chest capacity gets the same +8 ({chest0} -> {G["chest_cap"]()})', G['chest_cap']() == chest0 + 8)
     check('egg gifts belong to this chest: +5 a clutch', c['clutch_bonus'] == 5)
+    check('clutch gifts belong to this chest: +3 clutches', c['extra_clutches'] == 3)
     check(f'says what it gave ({spoken[-1]!r})',
           'Chest found. Carry 4 more. Baskets and chests hold 8 more. '
-          'Birds hatched here lay 5 more eggs a clutch.' in spoken[-1])
+          'Birds hatched here lay 5 more eggs a clutch. '
+          'Birds hatched here lay 3 more clutches before flying off.' in spoken[-1])
+    check('one clutch is said as one clutch',
+          'lay 1 more clutch before' in G['gift_speech']({'eggs': 0, 'clutches': 1, 'carry': 0, 'storage': 0}))
+    check('no clutch gift, nothing said about clutches',
+          'clutch' not in G['gift_speech']({'eggs': 0, 'clutches': 0, 'carry': 2, 'storage': 0}))
 
     print('chests grow twice as fast as baskets:')
     before_b, before_c = G['basket_cap'](), G['chest_cap']()
@@ -125,6 +132,9 @@ def run_checks(G):
     check('each carries the chest\'s egg gift', all(b['clutch_bonus'] == 5 for b in home))
     sizes = [G['clutch_size'](b) for b in home]
     check(f'so their clutches are 2 + 5 = {sizes[0]}', sizes == [7, 7, 7])
+    lives = [b['clutches_left'] for b in home]
+    check(f'and they lay 3 more clutches than a plain bird before flying off ({lives})',
+          all(G['CLUTCHES_MIN'] + 3 <= n <= G['CLUTCHES_MAX'] + 3 for n in lives))
     c['eggs'] = [{'hatch_timer': 999.0}] * G['chest_cap']()
     state['held'].append({'hatch_timer': 999.0, 'next_warning': 0.0})
     P.update(x=100.0, y=0.0)

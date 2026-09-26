@@ -157,9 +157,16 @@ HATCH_TIMER_INITIAL = 30.0
 GROUND_HATCH_PER_FRAME = 12
 
 # Birds laying eggs. A bird hatched in a basket lays a CLUTCH, several eggs at
-# once the way real birds do, every "Time before a bird lays" (a setting), for
-# life, near its home basket. You keep eggs safe; the birds they become give
-# you more young to keep safe.
+# once the way real birds do, every "Time before a bird lays" (a setting),
+# near its home basket. You keep eggs safe; the birds they become give you
+# more young to keep safe.
+#
+# A bird lays a limited number of clutches, CLUTCHES_MIN..CLUTCHES_MAX rolled
+# when it hatches, plus the extra_clutches of the chest it hatched in. After
+# its last clutch it flies off. That is the population control: a flock that
+# laid forever only grew, and a park reached four thousand eggs. (Until
+# 25 Sep 2026 birds did lay for life; the fixed-for-life count was dropped at
+# Rozaya's request so that chests could raise it and the park could settle.)
 #
 # Clutch size is rolled fresh each time from CLUTCH_MIN..CLUTCH_MAX, plus the
 # bird's own clutch_bonus. Plain birds have no bonus; birds hatched in a chest
@@ -170,6 +177,8 @@ GROUND_HATCH_PER_FRAME = 12
 # misreading of "birds lay 1-10": it meant a clutch, not a lifetime.)
 CLUTCH_MIN = 1
 CLUTCH_MAX = 10
+CLUTCHES_MIN = 1               # clutches in a plain bird's life
+CLUTCHES_MAX = 3
 LAY_TIME_DEFAULT = 180.0
 LAID_EGG_MIN = 6.0            # from the home basket: close enough to be "theirs"
 LAID_EGG_MAX = 20.0
