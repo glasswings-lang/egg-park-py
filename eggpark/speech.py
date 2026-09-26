@@ -80,8 +80,25 @@ def log_crash(text):
         print(f'[crash log] could not write: {exc}')
 
 
+# Each new line cuts off the one before it. NVDA queues otherwise, and a busy
+# park queued so much that pressing a key meant waiting through a backlog of
+# old news before hearing the answer: "I can't scroll down the list, I can't
+# do anything" (25 Sep 2026). Lines spoken within SAY_TOGETHER seconds of
+# each other are one moment, though, and queue: the chest list's opening line
+# and its first chest are said together, not one cutting the other off.
+SAY_TOGETHER = 0.25
+_last_said_at = -1e9
+
+
 def say(text):
-    """Speak a line via the user's screen reader."""
+    """Speak a line via the user's screen reader, interrupting older speech."""
+    global _last_said_at
     log_event(f'said: {text}')
+    now = time.monotonic()
+    interrupt = now - _last_said_at > SAY_TOGETHER
+    _last_said_at = now
     if _speech:
-        _speech.speak(text)
+        try:
+            _speech.speak(text, interrupt=interrupt)
+        except TypeError:
+            _speech.speak(text)

@@ -91,6 +91,11 @@ class Tally:
 
 
 def _birds_hatched(count):
+    # Off unless asked for: in a busy park this was most of what got said.
+    # The hatch sound still plays, and P or X gives the bird count.
+    from eggpark import prefs
+    if not prefs.settings.get('say_hatching', False):
+        return None
     flock = len(state.birds)
     in_park = f'{flock} bird{"s" if flock != 1 else ""} in the park.'
     if count == 1:

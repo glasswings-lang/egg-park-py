@@ -130,6 +130,9 @@ SETTINGS_MENU = [
      'format': lambda v: ('none' if v <= 0.0 else f'{v * 100:.0f} percent ignored')},
     {'key': 'prefer_samples', 'label': 'Use recordings when available',
      'kind': 'bool', 'default': True},
+    # Off by default: in a busy park, hatching was most of what the game said.
+    {'key': 'say_hatching', 'label': 'Say when birds hatch',
+     'kind': 'bool', 'default': False},
     # A pad with a worn stick drifts, which in an audio game reads as the
     # world wandering off by itself. Switching it off here is quicker than
     # unplugging.

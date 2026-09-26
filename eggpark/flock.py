@@ -34,7 +34,8 @@ def hatch_into_your_bird(basket):
     other than the hatch loop hatches a single egg."""
     _new_bird(basket)
     sounds.fire_hatch_in_basket(basket)
-    speech.say(f'A bird hatched. {len(state.birds)} birds in the park.')
+    if prefs.settings.get('say_hatching', False):
+        speech.say(f'A bird hatched. {len(state.birds)} birds in the park.')
 
 
 def _new_bird(basket):

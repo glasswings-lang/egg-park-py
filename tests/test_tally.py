@@ -26,6 +26,7 @@ def run_checks(G):
     settings['enable_egg_warnings'] = True
     settings['lay_time'] = 9000.0
     settings['hatch_time'] = 60.0
+    settings['say_hatching'] = True       # the spoken line is off by default; its own check below
     player, eggs, held, birds = G['player'], G['eggs'], G['held'], G['birds']
 
     for name in ('fire_wild_bird_flyoff', 'fire_hatch_in_basket_at', 'fire_egg_warning'):
@@ -117,6 +118,18 @@ def run_checks(G):
     check(f'and goes out after it, still counted ({later!r})', held_over == 1 and later)
     check('and one bird reads as one bird', 'A bird hatched. 0 birds in the park.' == later
           or later == 'A bird hatched. 1 bird in the park.')
+
+    print('hatching is not spoken unless asked for:')
+    settings['say_hatching'] = False
+    basket = fresh()
+    basket['eggs'] = [{'hatch_timer': 0.5, 'next_warning': 99.0} for _ in range(5)]
+    tick(1.0)
+    hatch_sounds = [f for f in fired if f[0] == 'fire_hatch_in_basket_at']
+    check(f'five hatch: the sound plays, nothing is said ({spoken!r})',
+          len(birds) == 5 and hatch_sounds and not any('hatched' in s for s in spoken))
+    check('the setting is off by default',
+          next(i for i in G['SETTINGS_MENU'] if i['key'] == 'say_hatching')['default'] is False)
+    settings['say_hatching'] = True
 
     print('a new park does not inherit the last one:')
     tal.add((0.0, 0.0, 0.0))
