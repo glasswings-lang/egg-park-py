@@ -228,7 +228,12 @@ BIRD_FADE = 20.0
 PAD_DEADZONE = 0.15
 PAD_MOVE_CURVE = 1.5
 PAD_TURN_CURVE = 2.0
-PAD_TRIGGER_THRESHOLD = 0.4   # how far the right trigger counts as running
+# How far a trigger must be pulled to count. Measured 25 Sep 2026 on
+# Rozaya's XInput pad: resting reads 0.00, and a FULL squeeze reads only about
+# 0.40, left and right alike. At the old 0.4 a full pull sat on the line and
+# almost never crossed it, so both triggers seemed dead. 0.15 is well clear of
+# both. tools/pad_probe.py shows what a pad sends.
+PAD_TRIGGER_THRESHOLD = 0.15
 
 # Footsteps — distance the player has to walk before the next step fires.
 # Cadence is implicitly tied to walk speed: 1.0 m stride at default 2.0 m/s

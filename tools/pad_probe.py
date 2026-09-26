@@ -25,7 +25,7 @@ def main():
     pad.open()
     print(f'Watching {pad.name} for 15 seconds.')
     print('Squeeze the RIGHT TRIGGER (that is run), push the sticks, press buttons.')
-    print('Anything over 0.40 on the right trigger counts as running.\n')
+    print('Anything over 0.15 on a trigger counts as pulled.\n')
 
     buttons = ('a', 'b', 'x', 'y', 'leftshoulder', 'rightshoulder',
                'start', 'back', 'leftstick', 'rightstick')
@@ -45,16 +45,16 @@ def main():
         print(f'  left stick {pad.leftx:+.2f},{pad.lefty:+.2f}   '
               f'right stick {pad.rightx:+.2f},{pad.righty:+.2f}   '
               f'triggers L {lt:.2f} R {rt:.2f}'
-              f'{"   RUNNING" if rt > 0.4 else ""}')
+              f'{"   RUNNING" if rt > 0.15 else ""}')
         time.sleep(0.1)
 
     pad.close()
     print(f'\nHighest the right trigger reached: {biggest_right:.2f} '
-          f'(needs to pass 0.40 to run)')
+          f'(needs to pass 0.15 to run)')
     print(f'Highest the left trigger reached:  {biggest_left:.2f}')
     print('Buttons that reported a press: '
           + (', '.join(sorted(seen_buttons)) if seen_buttons else 'none'))
-    if biggest_right <= 0.4:
+    if biggest_right <= 0.15:
         print('\nThe right trigger never got above the line, so running would '
               'never start. That is the bug, and it is in the reading, not in you.')
 
