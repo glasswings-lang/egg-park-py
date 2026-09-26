@@ -24,6 +24,9 @@ to turn the D-pad into questions rather than actions.
   D-pad down    lead me to a basket I have not found (V)
   D-pad right   lead me to a chest I have found, with room (C)
   D-pad left    lead me to a chest I have not found (Shift+C)
+  Left trigger  the chest list: every chest found, and what its birds get (G).
+                While it's open, D-pad up and down choose, A picks, B closes;
+                the sticks still walk and turn. See eggpark/chestlist.py.
   HOLD Y, then
     D-pad up    which way am I facing
     D-pad down  what am I carrying
@@ -229,6 +232,25 @@ def menu_axis():
 
 _menu_latched = (0, 0)
 
+# The left trigger opens and closes the chest list. It's an axis, not a
+# button, so it's read every frame and acts once per pull: _left_pulled stops
+# a held trigger from opening and closing the list sixty times a second.
+_left_pulled = False
+
+
+def tick_left_trigger():
+    global _left_pulled
+    from eggpark import chestlist, prefs
+    if _controller is None or not prefs.settings.get('enable_controller', True):
+        return
+    try:
+        pulled = _controller.lefttrigger > config.PAD_TRIGGER_THRESHOLD
+    except Exception:
+        return
+    if pulled and not _left_pulled:
+        chestlist.toggle()
+    _left_pulled = pulled
+
 
 def tick_menus():
     """Let the left stick move through whichever menu is open. Called every
@@ -290,6 +312,13 @@ def _on_dpad(controller, vector):
                 prefs.settings_focus_move(step)
         elif (left or right) and prefs._in_settings:
             prefs.settings_change(1 if right else -1)
+        return
+    from eggpark import chestlist
+    if chestlist.is_open():
+        if up:
+            chestlist.move(-1)
+        elif down:
+            chestlist.move(+1)
         return
     if _y_held:
         # Held Y turns the D-pad into questions. Borrowed from Periphery
@@ -377,6 +406,14 @@ def _on_button(controller, name):
             prefs.close_settings()
         return
 
+    from eggpark import chestlist
+    if chestlist.is_open() and name in ('a', 'b'):
+        if name == 'a':
+            chestlist.pick()
+        else:
+            chestlist.close_list()
+        return
+
     if name == 'a':
         scan.try_scan()
     elif name == 'b':
@@ -403,6 +440,8 @@ PAD_HELP = (
     'On the D-pad: up leads you to a basket you have found with room, '
     'down to a basket you have not found, right to a chest you have found, '
     'left to a chest you have not found. '
+    'The left trigger lists every chest you have found and what its birds get: '
+    'D-pad up and down choose, A leads you there, B or the trigger again closes it. '
     'Hold Y and press the D-pad to ask instead: up for your heading, '
     'down for what you are carrying, left for what is in the park, '
     'right for everything. '

@@ -150,6 +150,7 @@ walks you slowly up to an egg.
 | **Y**, tapped | Read out the controller controls |
 | **D-pad up / down** | Lead to a found / unfound basket |
 | **D-pad right / left** | Lead to a found / unfound chest |
+| **Left trigger** | The chest list: every chest you've found, nearest first, and what its birds get. D-pad up and down choose, A leads you there, B closes. The park keeps running |
 | **Hold Y + D-pad** | Ask: heading / carrying / the park / everything |
 | **Bumpers** | Volume down / up |
 | **Start / Back** | Main menu / settings |
@@ -197,6 +198,7 @@ python tests/test_park_save.py      # the park survives closing the game
 python tests/test_egg_spread.py     # eggs spread around your baskets, no drift
 python tests/test_birds_lay.py      # birds lay eggs near home
 python tests/test_chests.py         # chests: gifts, capacity, C and Shift+C
+python tests/test_chest_list.py     # the chest list: G and the left trigger
 python tests/test_nets.py           # nets, scooping, basket and chest footsteps
 python tests/test_crash_safety.py   # a scan in a full park, and the crash log
 python tests/test_tally.py          # many events at once make one sound, not hundreds
@@ -244,6 +246,7 @@ still deciding what you want to do.
 | **V** / **Shift+B** | Guide to the nearest basket not yet found        |
 | **C**               | Guide to the nearest found chest with room       |
 | **Shift+C**         | Guide to the nearest chest not yet found         |
+| **G**               | Chest list: Up / Down choose, Enter leads, Esc closes |
 | **F**               | Deposit held eggs at the basket you're on        |
 | **P**               | Speak status (heading, distances, counts, caps)  |
 | **R**               | Reload sample bank (re-scan samples folder)      |
@@ -304,6 +307,7 @@ egg-park-py/
 │   ├── tally.py       #   repeated events counted, and reported once
 │   ├── pad.py         #   the controller: sticks, buttons, menus
 │   ├── chests.py      #   chests: gifts, finding, C and Shift+C
+│   ├── chestlist.py   #   the chest list: G and the left trigger
 │   ├── game.py        #   window, keys, per-frame update, status
 │   └── saving.py      #   saving and loading the park
 ├── tests/             # see Tests above

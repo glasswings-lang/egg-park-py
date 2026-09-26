@@ -177,6 +177,10 @@ def stop_scan_guide():
 
 
 def _scan_guide_still_wanted(g, dist):
+    if g['kind'] == 'picked chest':
+        # Chosen from the chest list (eggpark/chestlist.py): full or not, near
+        # or far, you asked for this one, so it leads until you're on it.
+        return g['target'] in state.chests and dist > config.CHEST_DEPOSIT_RADIUS
     if dist > GUIDE_GIVE_UP:
         return False
     if g['kind'] == 'egg':

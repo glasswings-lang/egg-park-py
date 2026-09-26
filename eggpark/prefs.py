@@ -221,6 +221,8 @@ def open_settings():
     # bug than the one the main menu exists to fix.
     menu._settings_from_menu = menu._in_main_menu
     menu._in_main_menu = False
+    from eggpark import chestlist
+    chestlist.forget()
     _in_settings = True
     _settings_focus = 0
     sounds.fire_menu_open()

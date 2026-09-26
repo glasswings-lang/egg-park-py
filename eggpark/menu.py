@@ -2,7 +2,7 @@
 """The main menu, and starting, resuming and restarting a park."""
 import os
 
-from eggpark import game, prefs, saving, sounds, soundtest, speech, state, world
+from eggpark import chestlist, game, prefs, saving, sounds, soundtest, speech, state, world
 
 # ============================================================================
 # Main menu
@@ -55,6 +55,7 @@ def open_main_menu(announce='Main menu.'):
     global _in_main_menu, _main_menu_focus
     if _game_started:
         saving.save_park('menu opened')
+    chestlist.forget()
     _in_main_menu = True
     _main_menu_focus = 0
     saving._new_park_armed = False

@@ -263,6 +263,8 @@ def reset_world():
     forget_hands_full()
     tally.forget_all()
     pad.forget_run()
+    from eggpark import chestlist      # late: chestlist imports this file
+    chestlist.forget()
     log_counts('world reset for a new park')
     # A guide left over would lead toward a basket from the old park.
     scan.stop_scan_guide()

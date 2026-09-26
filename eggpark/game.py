@@ -6,7 +6,7 @@ import time
 import pyglet
 from pyglet.window import key
 
-from eggpark import chests, config, flock, menu, pad, prefs, saving, scan, sounds, soundtest, speech, state, tally, world
+from eggpark import chestlist, chests, config, flock, menu, pad, prefs, saving, scan, sounds, soundtest, speech, state, tally, world
 
 # ============================================================================
 # Window + input
@@ -34,6 +34,8 @@ CONTROL_HELP = (
            'V or Shift B leads you to the nearest basket you have not found yet. '
            'C leads you to the nearest found chest with room, '
            'Shift C to the nearest chest you have not found. '
+           'G lists every chest you have found and what its birds get: '
+           'up and down arrows choose, Enter leads you there, Escape or G closes it. '
            'F deposits at a basket. P speaks your status.'),
     ('Set up', 'O opens settings. Left and right square brackets '
                'lower and raise the volume. R reloads the sample bank.'),
@@ -130,6 +132,22 @@ def on_key_press(symbol, modifiers):
             return None  # not ours; let it fall through
         return pyglet.event.EVENT_HANDLED
 
+    # The chest list keeps the park running, so it takes only its own keys
+    # and lets the rest through: W A S D still walk while you choose.
+    if chestlist.is_open():
+        if symbol == key.UP:
+            chestlist.move(-1)
+            return pyglet.event.EVENT_HANDLED
+        if symbol == key.DOWN:
+            chestlist.move(+1)
+            return pyglet.event.EVENT_HANDLED
+        if symbol == key.RETURN:
+            chestlist.pick()
+            return pyglet.event.EVENT_HANDLED
+        if symbol == key.ESCAPE:
+            chestlist.close_list()
+            return pyglet.event.EVENT_HANDLED
+
     if symbol == key.ESCAPE:
         # Back to the menu, not out of the game. Quitting outright on Escape
         # is a hard thing to undo by accident with no visible confirmation.
@@ -152,6 +170,8 @@ def on_key_press(symbol, modifiers):
         chests.try_scan_unfound_chests()
     elif symbol == key.C:
         chests.try_scan_found_chests()
+    elif symbol == key.G:
+        chestlist.toggle()
     elif symbol == key.R:
         sounds.reload_sample_bank()
     elif symbol == key.O:
@@ -218,6 +238,7 @@ def update(dt):
     # Analog all the way through — see eggpark/pad.py for why that matters
     # more than it sounds like it should.
     pad_forward, pad_right, pad_turn, pad_running = pad.read()
+    pad.tick_left_trigger()
 
     # Turn. Keys are all-or-nothing, the stick is proportional, and they add:
     # holding Q with the stick half over is still just a left turn.
