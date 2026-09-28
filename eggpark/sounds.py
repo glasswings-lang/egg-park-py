@@ -9,7 +9,7 @@ import time
 import pyglet
 from pyglet.media import synthesis
 
-from eggpark import chests, config, prefs, speech, state, world
+from eggpark import chests, config, prefs, speech, state, voices, world
 
 # ============================================================================
 # Synth source factories (all placeholders — replace with sample banks)
@@ -994,6 +994,8 @@ def stop_ducking():
 def _apply_duck():
     """Re-level every sound already playing. A player carries the volume it
     was fired at, so this can be applied and lifted without drift."""
+    if voices.available():
+        voices.relevel(duck_factor)
     for p in tuple(_active_players):
         base = getattr(p, '_eggpark_base_volume', None)
         if base is None:
@@ -1019,8 +1021,68 @@ def _apply_duck():
 MAX_VOICES = 64
 
 
+def _levels_for(volume, category):
+    """The sound's own level, with the duck left out so it can be lifted later."""
+    cat_vol = 1.0
+    if category:
+        cat_vol = prefs.settings.get('vol_' + category.replace('-', '_'), 1.0)
+    return volume * prefs.settings['master_volume'] * cat_vol
+
+
+def _distances_for(min_distance, max_distance):
+    if min_distance is None:
+        min_distance = prefs.settings.get('audio_distance',
+                                          config.SOURCE_MIN_DISTANCE)
+    if max_distance is None:
+        max_distance = config.SOURCE_MAX_DISTANCE
+    return min_distance, max_distance
+
+
+def use_voice_pool():
+    """Whether one-shots go through the reused OpenAL voices.
+
+    A setting rather than a rewrite-and-hope: if the pool ever behaves worse than
+    the old path, turn it off and the game goes back to a player per sound.
+    """
+    if not prefs.settings.get('voice_pool', True):
+        return False
+    if voices.available():
+        return True
+    if voices.start():
+        speech.log_event(f'voice pool ready: {voices.POOL_SIZE} voices')
+        return True
+    speech.log_event(f'voice pool unavailable ({voices.why_not()}); '
+                     'using a player per sound')
+    prefs.settings['voice_pool'] = False
+    return False
+
+
 def _play(source, *, position=None, volume=1.0, category=None,
           min_distance=None, max_distance=None, pitch=1.0):
+    base = _levels_for(volume, category)
+    min_distance, max_distance = _distances_for(min_distance, max_distance)
+    at_listener = position is None
+    listener_position = (state.player['x'], state.player['y'],
+                         state.player['z'])
+
+    if use_voice_pool():
+        played = voices.play(
+            source,
+            position=position,
+            volume=base,
+            duck=duck_factor(category),
+            pitch=pitch,
+            min_distance=min_distance,
+            max_distance=max_distance,
+            category=category,
+            at_listener=at_listener,
+            listener_position=listener_position,
+        )
+        if category in DUCKING_CATEGORIES:
+            duck_for()
+        return played
+
+    # ── the old path: one pyglet Player per sound ────────────────────────────
     if len(_active_players) >= MAX_VOICES:
         speech.log_event(f'dropped a {category or "sound"}: {len(_active_players)} '
                          f'already playing (the most is {MAX_VOICES})')
@@ -1032,16 +1094,9 @@ def _play(source, *, position=None, volume=1.0, category=None,
         return
     p.queue(source)
     p.pitch = pitch
-    # Per-category volume multiplies on top of master volume. Category names
-    # ('egg-call', etc.) map to setting keys by replacing '-' with '_' and
-    # prefixing 'vol_'. Missing keys default to 1.0, so passing an unknown
-    # category is a no-op (you just don't get a slider for it).
-    cat_vol = 1.0
-    if category:
-        cat_vol = prefs.settings.get('vol_' + category.replace('-', '_'), 1.0)
-    base = volume * prefs.settings['master_volume'] * cat_vol
     # Kept on the player so the duck can re-level it later without having to
-    # know how it was worked out.
+    # know how it was worked out. (Category volumes and the master level are
+    # worked out in _levels_for, which both paths share.)
     p._eggpark_base_volume = base
     p._eggpark_category = category
     p.volume = base * duck_factor(category)
@@ -1055,20 +1110,12 @@ def _play(source, *, position=None, volume=1.0, category=None,
     # with listener gives OpenAL a centered, max-gain render — i.e., the
     # "at the listener" behavior we actually want for footsteps, UI cues,
     # collect/refuse/etc.
-    at_listener = position is None
-    if at_listener:
-        position = (state.player['x'], state.player['y'], state.player['z'])
-    p.position = position
+    p.position = position if position is not None else listener_position
     # Distance attenuation. The defaults work for in-world objects (eggs,
     # baskets, birds — 80 m max). Origin chime overrides with a much
     # larger max so it stays audible as a navigational beacon.
-    # Read from settings so the Hearing distance slider takes effect on the
-    # very next sound, with no restart -- tuning this by ear is impossible if
-    # you have to relaunch between each try.
-    if min_distance is None:
-        min_distance = prefs.settings.get('audio_distance', config.SOURCE_MIN_DISTANCE)
     p.min_distance = min_distance
-    p.max_distance = max_distance if max_distance is not None else config.SOURCE_MAX_DISTANCE
+    p.max_distance = max_distance
 
     def _on_eos():
         _active_players.discard(p)
@@ -1607,6 +1654,11 @@ def update_listener():
             p.position = pos
         except Exception:
             _listener_locked.discard(p)
+    # Pooled voices: hand back the ones that have finished, keep the listener's
+    # own sounds on the listener, and re-level for the duck. One pass, once a
+    # frame, instead of a per-player callback each.
+    if voices.available():
+        voices.update(pos, duck_factor)
     # The duck is a moment long and has to lift on its own, so it is
     # re-applied every frame rather than only when a scan cue fires.
     _apply_duck()
