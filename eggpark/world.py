@@ -338,6 +338,10 @@ def try_collect_eggs():
     was. Nets widen it, and then everything in reach comes up in one go, with
     one sound and one spoken line rather than a burst of each.
     """
+    # The grid is rebuilt here if anything has changed the egg list behind its
+    # back. One comparison, every frame, and then nothing downstream has to
+    # wonder whether the cells are true.
+    state.eggs.settle()
     if not prefs.settings['enable_pickup']:
         return
     reach = collect_radius()
@@ -348,7 +352,10 @@ def try_collect_eggs():
     px, py = state.player['x'], state.player['y']
     reach_sq = reach * reach
     in_reach = []
-    for egg in state.eggs:
+    # Only the eggs in the cells that overlap your reach. The box test below is
+    # still worth doing -- a cell is 25 m square and reach is usually 2 -- but
+    # it now runs over a handful of eggs instead of every egg in the park.
+    for egg in state.eggs.near(px, py, reach):
         dx = egg['x'] - px
         if dx > reach or dx < -reach:
             continue

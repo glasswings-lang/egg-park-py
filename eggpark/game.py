@@ -394,16 +394,11 @@ def update(dt):
 
 
 def nearest_audible_egg():
-    best = None
-    best_d = float('inf')
-    for egg in state.eggs:
-        d = math.hypot(egg['x'] - state.player['x'], egg['y'] - state.player['y'])
-        if d > config.EGG_AUDIBLE:
-            continue
-        if d < best_d:
-            best = egg
-            best_d = d
-    return best
+    # Asked every EGG_CALL_INTERVAL. The field searches outwards from you and
+    # stops as soon as nothing further out could be closer, so a park with
+    # twenty thousand audible eggs costs about what an empty one does.
+    return state.eggs.nearest(state.player['x'], state.player['y'],
+                              config.EGG_AUDIBLE)
 
 
 def nearest_audible_basket():

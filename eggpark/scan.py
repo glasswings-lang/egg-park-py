@@ -14,7 +14,8 @@ def try_scan():
     """Bound to Space. Ping every item within SCAN_RANGE, closest first."""
     sounds.fire_scan_start()
     items = []
-    for egg in state.eggs:
+    for egg in state.eggs.near(state.player['x'], state.player['y'],
+                               config.SCAN_RANGE):
         d = math.hypot(egg['x'] - state.player['x'], egg['y'] - state.player['y'])
         if d <= config.SCAN_RANGE:
             items.append(('egg', d, egg))

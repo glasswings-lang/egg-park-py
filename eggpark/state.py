@@ -12,7 +12,13 @@ player = {'x': 0.0, 'y': 0.0, 'z': 0.0, 'yaw': 0.0}
 
 # Eggs in the world. Each: {x, y, z, freq_idx, hatch_timer}.
 # freq_idx selects a note from PENTATONIC_FREQS.
-eggs = []
+#
+# An EggField rather than a plain list: it behaves exactly like one, and keeps a
+# grid of 25-metre cells beside itself so "which eggs are near me" costs what the
+# neighbourhood costs instead of what the whole park costs. See eggpark/eggfield.py.
+from eggpark.eggfield import EggField   # noqa: E402  (data, not behaviour)
+
+eggs = EggField()
 
 # Baskets at fixed cardinal-direction positions for easy navigation while
 # testing. Each: {x, y, z, freq_idx, discovered, eggs}. `eggs` is a list
