@@ -412,38 +412,40 @@ def try_collect_eggs():
     if not prefs.settings['enable_pickup']:
         return
     reach = collect_radius()
-    # This runs every frame over every egg in the park, so it is written for
-    # ten thousand of them rather than four. A box test on x, then on y,
-    # throws nearly all of them out for the cost of a subtraction — hypot on
-    # every egg, every frame, was measured at 4 ms a frame in a full park.
     px, py = state.player['x'], state.player['y']
-    reach_sq = reach * reach
-    in_reach = []
-    # Only the eggs in the cells that overlap your reach. The box test below is
-    # still worth doing -- a cell is 25 m square and reach is usually 2 -- but
-    # it now runs over a handful of eggs instead of every egg in the park.
-    for egg in state.eggs.near(px, py, reach):
-        dx = egg['x'] - px
-        if dx > reach or dx < -reach:
-            continue
-        dy = egg['y'] - py
-        if dy > reach or dy < -reach:
-            continue
-        d_sq = dx * dx + dy * dy
-        if d_sq <= reach_sq:
-            in_reach.append((d_sq, egg))
-    # Eggs you have walked away from may speak to you again. Only the ones
-    # that were refused are worth revisiting, and there are never many —
-    # clearing a flag on every egg in the park cost another 1.2 ms a frame.
+    room = player_carry_cap() - len(state.held)
+
+    # Eggs you have walked away from may speak to you again. There are never many
+    # of them, so they are measured one by one rather than by rebuilding the set
+    # of everything in reach.
     if _refused_eggs:
-        near = {id(egg) for _d, egg in in_reach}
         for egg in list(_refused_eggs):
-            if id(egg) not in near:
+            if math.hypot(egg['x'] - px, egg['y'] - py) > reach:
                 egg.pop('refused', None)
                 _refused_eggs.remove(egg)
+
+    # NOTHING IS ASKED FOR BEYOND WHAT YOUR HANDS CAN HOLD.
+    #
+    # This is the one that made standing in a heap unplayable, and the keeper
+    # found it by experiment: sit still in a dense patch and it stumbles, walk out
+    # of it and it clears, make a new dense patch and it stumbles again. With
+    # seven nets the reach is 16 metres, and in the crowded corner of a park that
+    # circle holds about thirty thousand eggs. Measuring every one of them, every
+    # frame, in order to pick up at most a handful, is work that grows with how
+    # many eggs are standing around you -- which is exactly the shape of what they
+    # described.
+    #
+    # One more than there is room for is all that is needed: it says something was
+    # left behind, which is the only other thing this function has to know.
+    if room <= 0:
+        if state.eggs.any_within(px, py, reach) and _may_say_hands_full():
+            sounds.fire_refuse_sound()
+            speech.say(f'Hands full. {len(state.held)} eggs held.')
+        return
+
+    in_reach = state.eggs.nearest_many(px, py, reach, room + 1)
     if not in_reach:
         return
-    in_reach.sort(key=lambda pair: pair[0])
 
     collected = 0
     left_behind = []
