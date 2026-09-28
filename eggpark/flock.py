@@ -275,15 +275,13 @@ def lay_clutch(bird):
     clutch is one event, and ten plops on top of each other would be noise."""
     size = clutch_size(bird)
     clutch = []
-    # Only the eggs near this basket can be a clutch's neighbours, and
-    # sorting the whole park for each clutch was most of the cost of laying.
-    grid = world.egg_grid_near(bird['home_x'], bird['home_y'],
-                               config.LAID_EGG_MAX + config.LAID_EGG_MIN_SEPARATION,
-                               config.LAID_EGG_MIN_SEPARATION)
+    # No grid to build: state.eggs is one (see eggpark/eggfield.py), and each egg
+    # is in it the moment it is appended, so the next egg of the clutch already
+    # sees its sibling. Sorting the park for every clutch used to be most of the
+    # cost of laying one.
     for _ in range(size):
-        egg = world.lay_egg_near(bird['home_x'], bird['home_y'], grid)
+        egg = world.lay_egg_near(bird['home_x'], bird['home_y'])
         state.eggs.append(egg)
-        world.grid_add(grid, config.LAID_EGG_MIN_SEPARATION, egg)
         clutch.append(egg)
     if clutch:
         sounds.fire_egg_laid(clutch[0])

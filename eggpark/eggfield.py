@@ -170,6 +170,116 @@ class EggField(list):
                 if bucket:
                     yield from bucket.values()
 
+    def _cell_span(self, gx, gy, x, y):
+        """Closest and furthest an egg in this cell could possibly be from (x, y)."""
+        left, right = gx * CELL, (gx + 1) * CELL
+        bottom, top = gy * CELL, (gy + 1) * CELL
+        near_x = max(0.0, left - x, x - right)
+        near_y = max(0.0, bottom - y, y - top)
+        far_x = max(abs(x - left), abs(x - right))
+        far_y = max(abs(y - bottom), abs(y - top))
+        return math.hypot(near_x, near_y), math.hypot(far_x, far_y)
+
+    def count_within(self, x, y, radius):
+        """How many eggs are inside the circle, without measuring most of them.
+
+        A cell wholly inside the circle contributes its own size and not one egg
+        in it is looked at; a cell wholly outside is skipped; only the ring of
+        cells that straddle the edge is measured egg by egg. A scan asks this
+        about 200 metres, which in a crowded park used to mean forty thousand
+        distance calculations for a single sentence of speech.
+        """
+        if radius <= 0 or not self._cells:
+            return 0
+        total = 0
+        cells = self._cells
+        for gx in range(math.floor((x - radius) / CELL),
+                        math.floor((x + radius) / CELL) + 1):
+            for gy in range(math.floor((y - radius) / CELL),
+                            math.floor((y + radius) / CELL) + 1):
+                bucket = cells.get((gx, gy))
+                if not bucket:
+                    continue
+                closest, furthest = self._cell_span(gx, gy, x, y)
+                if furthest <= radius:
+                    total += len(bucket)
+                elif closest <= radius:
+                    for egg in bucket.values():
+                        if math.hypot(egg['x'] - x, egg['y'] - y) <= radius:
+                            total += 1
+        return total
+
+    def nearest_many(self, x, y, max_radius, count):
+        """The `count` nearest eggs within `max_radius`, as (distance, egg), sorted.
+
+        Same outward search as `nearest()`: once enough have been found, a cell is
+        ruled out by how close anything in it could be. A scan wants the nearest
+        twelve, and in a crowded park it gets them from the first cell or two.
+        """
+        if count <= 0 or max_radius <= 0 or not self._cells:
+            return []
+        cx, cy = math.floor(x / CELL), math.floor(y / CELL)
+        rings = int(max_radius / CELL) + 1
+        cells = self._cells
+        found = []
+        worst = max_radius          # nothing further than this is wanted
+        for ring in range(rings + 1):
+            if len(found) >= count and ring > 1 and (ring - 1) * CELL > worst:
+                break
+            for gx in range(cx - ring, cx + ring + 1):
+                for gy in range(cy - ring, cy + ring + 1):
+                    if ring and max(abs(gx - cx), abs(gy - cy)) != ring:
+                        continue
+                    bucket = cells.get((gx, gy))
+                    if not bucket:
+                        continue
+                    closest, _furthest = self._cell_span(gx, gy, x, y)
+                    if closest > worst:
+                        continue
+                    for egg in bucket.values():
+                        d = math.hypot(egg['x'] - x, egg['y'] - y)
+                        if d <= worst:
+                            found.append((d, egg))
+                    if len(found) > count * 4:
+                        found.sort(key=lambda pair: pair[0])
+                        del found[count:]
+                        if len(found) >= count:
+                            worst = min(worst, found[-1][0])
+        found.sort(key=lambda pair: pair[0])
+        return found[:count]
+
+    def any_within(self, x, y, radius):
+        """True as soon as one egg is found within `radius`. Cheap by design.
+
+        Asked forty times per egg placed, with a radius of thirty metres, which
+        covers 225 cells. Scanning all of them to find an answer that the very
+        first egg settles was 9,000 dictionary look-ups per egg placed. So this
+        works outwards from the middle and stops at the first hit: in a crowded
+        park that is one look-up and one measurement.
+        """
+        if radius <= 0 or not self._cells:
+            return False
+        cx, cy = math.floor(x / CELL), math.floor(y / CELL)
+        rings = int(radius / CELL) + 1
+        cells = self._cells
+        limit = radius * radius
+        for ring in range(rings + 1):
+            if ring > 1 and (ring - 1) * CELL > radius:
+                break
+            for gx in range(cx - ring, cx + ring + 1):
+                for gy in range(cy - ring, cy + ring + 1):
+                    if ring and max(abs(gx - cx), abs(gy - cy)) != ring:
+                        continue
+                    bucket = cells.get((gx, gy))
+                    if not bucket:
+                        continue
+                    for egg in bucket.values():
+                        dx = egg['x'] - x
+                        dy = egg['y'] - y
+                        if dx * dx + dy * dy < limit:
+                            return True
+        return False
+
     def nearest(self, x, y, max_radius):
         """The closest egg within `max_radius`, or None.
 

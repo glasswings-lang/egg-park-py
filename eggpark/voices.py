@@ -77,25 +77,17 @@ DEFAULT_IMPORTANCE = 50
 
 # The most voices any one kind may hold at once.
 #
-# These are deliberately generous, and the bird ones especially. The keeper's
-# correction, and it matters: the bird calls were good; the problem was their
-# choking up everything. The birds were never the fault — a player per sound
-# was. So the job here is not to thin the flock; it is to make sure that when
-# every voice really is busy, what gets given up is a bird rather than the egg
-# you are trying to find. That is what IMPORTANCE does, and it only comes into
-# play at genuine saturation.
+# Almost nothing has one, and that is deliberate. Reported from play: "sounds are
+# being silenced that I'm trying to navigate toward." A cap silences whatever
+# happens to fire once the cap is reached, and it has no idea which sound you are
+# walking towards — so a cap on anything you navigate by is a way of hiding the
+# thing you most need. The pool of POOL_SIZE voices is the limit, and when it
+# really is full, IMPORTANCE decides what is given up.
 #
-# The real limiter is distance: a bird you cannot hear never takes a voice at
-# all, so a big park spread wide costs nothing for its far corners.
-#
-# Small allowances are kept only where more copies are mush rather than richness
-# — your own footsteps, eggs landing right beside each other.
+# What is left are the two kinds where more copies are mush rather than richness:
+# your own footsteps on top of each other, and eggs landing in the same instant.
 CATEGORY_LIMIT = {
-    'bird-call': 64,
-    'bird-ambient': 40,
-    'egg-call': 32,
     'egg-laid': 6,
-    'wild-bird-flyoff': 8,
     'footstep': 3,
 }
 
@@ -287,17 +279,21 @@ def play(source, *, position, volume, pitch, min_distance, max_distance,
     if not _ready:
         return False
 
-    # Too far away to hear: never worth a voice. The listener's own sounds
-    # (footsteps, menus) are always at zero distance.
+    # How far away this is. Used for choosing what to give up when every voice is
+    # busy -- and for NOTHING else.
+    #
+    # An earlier version refused to play anything beyond its max_distance, which
+    # sounded like a saving and was a bug: OpenAL's max_distance is where
+    # attenuation stops getting quieter, not where a sound becomes inaudible, so
+    # refusing those silenced things that used to be faintly there. Reported from
+    # play as "sounds are being silenced that I'm trying to navigate toward",
+    # which is the worst thing this file could possibly do.
     distance = 0.0
     if not at_listener and position is not None and listener_position is not None:
         dx = position[0] - listener_position[0]
         dy = position[1] - listener_position[1]
         dz = position[2] - listener_position[2]
         distance = math.sqrt(dx * dx + dy * dy + dz * dz)
-        if max_distance and distance > max_distance:
-            _note_drop(category or 'sound')
-            return False
 
     importance = IMPORTANCE.get(category, DEFAULT_IMPORTANCE)
 

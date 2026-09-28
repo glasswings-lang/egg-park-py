@@ -148,6 +148,36 @@ def grid_add(grid, cell, egg):
     grid.setdefault((math.floor(egg['x'] / cell), math.floor(egg['y'] / cell)), []).append(egg)
 
 
+def _crowded_within(x, y, separation):
+    """True as soon as ONE egg is found within `separation` of (x, y).
+
+    STOPS AT THE FIRST ONE, and that is the whole point. The caller asks "is
+    this spot free?", and once a single egg that close has been found the answer
+    cannot change. Without the early stop, a park where birds have laid for an
+    hour has hundreds of eggs in every neighbourhood and nothing anywhere is far
+    from its neighbours, so every one of the 40 attempts per egg measured every
+    egg nearby and found no spot regardless. A profile of twenty seconds of
+    walking in a 10,000-egg park: 43 million distance checks, a worst frame of
+    3.6 seconds, and footsteps arriving whenever the game came back.
+    """
+    return state.eggs.any_within(x, y, separation)
+
+
+def _gap_to_nearest(x, y, separation):
+    """Exactly how far the nearest egg is, for choosing between cramped spots.
+
+    A stopped-early answer is no good here: it is just the first neighbour that
+    turned up. Using the cheap answer for this question is what made eggs bunch
+    -- measured over 40 clutches, the gap between neighbouring eggs halved, from
+    a median of 3.6 m to 1.4 m, and it was reported from play as everything
+    being clustered together.
+    """
+    found = state.eggs.nearest(x, y, separation)
+    if found is None:
+        return float('inf')
+    return math.hypot(found['x'] - x, found['y'] - y)
+
+
 def _nearest_egg_within_reach(grid, cell, x, y, stop_at=0.0):
     """How close the nearest egg is, looking only at the 3x3 cells around
     (x, y). Exact whenever the true nearest egg is closer than `cell`.
@@ -179,11 +209,44 @@ def _nearest_egg_within_reach(grid, cell, x, y, stop_at=0.0):
     return best
 
 
+# How hard to look for a free spot.
+#
+# EGG_PLACE_ATTEMPTS tries is right for a park with room in it. In a park with
+# forty thousand eggs there IS no spot thirty metres from every other egg, so all
+# forty tries fail, every time, for every egg placed -- and eggs are placed about
+# ten times a second, because ground eggs keep hatching and every wild one owes a
+# replacement. Measured: five milliseconds a frame spent proving the impossible,
+# out of the sixteen a frame has.
+#
+# So when the park stops having room, the search gets short. Sampling six cramped
+# spots and taking the roomiest is barely different from sampling forty -- they
+# are all cramped -- and the moment a free spot IS found, the full search comes
+# back for the next egg. Nothing changes for a park that isn't full.
+_SATURATED_AFTER = 3          # this many failed placements in a row
+_SATURATED_ATTEMPTS = 6       # then try this many spots instead
+_SATURATED_CANDIDATES = 4     # and compare this many of them exactly
+_failures_in_a_row = 0
+
+
+def placement_effort():
+    """(attempts, fallback candidates) for the next egg placed."""
+    if _failures_in_a_row >= _SATURATED_AFTER:
+        return _SATURATED_ATTEMPTS, _SATURATED_CANDIDATES
+    return config.EGG_PLACE_ATTEMPTS, config.EGG_FALLBACK_CANDIDATES
+
+
 def _place_egg(anchors, dist_min, dist_max, separation, grid=None):
     """An egg dist_min..dist_max from a random anchor, `separation` from the
-    other eggs and EGG_MIN_FROM_PLAYER from you, as far as possible."""
-    if grid is None:
-        grid = egg_grid(separation)
+    other eggs and EGG_MIN_FROM_PLAYER from you, as far as possible.
+
+    `grid` is accepted and ignored: state.eggs is itself a grid now (see
+    eggpark/eggfield.py), so there is nothing to build. Building one here was
+    the most expensive thing in a crowded park -- it walked every egg in the
+    park, and one wild egg is replaced for every wild egg picked up, which with
+    nets is hundreds in a single frame. That was 40,000 x 272 pieces of work in
+    one frame, and it read as the game freezing.
+    """
+    del grid
     # TWO QUESTIONS, AND THEY NEED DIFFERENT ANSWERS.
     #
     # "Is this spot free?" only needs to find ONE egg inside the separation,
@@ -201,9 +264,11 @@ def _place_egg(anchors, dist_min, dist_max, separation, grid=None):
     # So the tries are collected first, cheaply, and if none of them is free
     # the roomiest is picked from the first EGG_FALLBACK_CANDIDATES of them
     # using exact distances. Bounded work, and the spacing comes back.
+    global _failures_in_a_row
+    attempts, candidates = placement_effort()
     best, best_gap = None, -1.0
     tried = []
-    for _attempt in range(config.EGG_PLACE_ATTEMPTS):
+    for _attempt in range(attempts):
         ax, ay = random.choice(anchors)
         angle = random.uniform(0, 2 * math.pi)
         dist = random.uniform(dist_min, dist_max)
@@ -211,14 +276,16 @@ def _place_egg(anchors, dist_min, dist_max, separation, grid=None):
         y = ay + math.sin(angle) * dist
         if math.hypot(x - state.player['x'], y - state.player['y']) < config.EGG_MIN_FROM_PLAYER:
             continue
-        gap = _nearest_egg_within_reach(grid, separation, x, y, stop_at=separation)
-        if gap >= separation:
-            best, best_gap = (x, y), gap
+        if not _crowded_within(x, y, separation):
+            best, best_gap = (x, y), separation
+            _failures_in_a_row = 0
             break
         tried.append((x, y))
+    else:
+        _failures_in_a_row += 1
     if best is None and tried:
-        for x, y in tried[:config.EGG_FALLBACK_CANDIDATES]:
-            gap = _nearest_egg_within_reach(grid, separation, x, y)   # exact
+        for x, y in tried[:candidates]:
+            gap = _gap_to_nearest(x, y, separation)   # exact
             if gap > best_gap:
                 best, best_gap = (x, y), gap
     if best is None:

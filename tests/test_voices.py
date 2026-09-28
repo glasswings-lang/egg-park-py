@@ -145,19 +145,29 @@ def main():
           len(voices._buffers) == 1)
     check('all twenty are playing', voices.live_count() == 20)
 
-    # ── far away means no voice at all ───────────────────────────────────────
+    # ── distance decides what is given up, never what is refused ─────────────
+    # Silencing distant sounds hid the things the keeper was walking towards.
     clear()
     played_near = fire(egg, 'egg-call', distance=10.0)
     played_far = fire(egg, 'egg-call', distance=500.0)
     check('a sound within earshot plays', played_near)
-    check('a sound far past the hearing distance never takes a voice',
-          not played_far and voices.live_count() == 1)
+    check('a distant sound still plays -- it is quiet, not silenced',
+          played_far and voices.live_count() == 2)
+    check('but it is the further one that would be given up first',
+          max(voices._live, key=lambda v: v.distance).distance > 400)
+
+    # nothing at all has a cap except the two mush categories
+    clear()
+    for _ in range(80):
+        fire(bird_or_egg := egg, 'egg-call', distance=5.0)
+    check('eighty egg calls at once are eighty egg calls',
+          voices.live_count() == 80 and not voices.dropped)
 
     # ── each kind has its own allowance ──────────────────────────────────────
     # The flock is the good part. Forty birds calling at once should be forty
     # birds calling at once.
     clear()
-    bird = tone(0.4, 660)
+    bird = tone(0.4, 660)   # noqa: F841 -- used below and by later checks
     for _ in range(40):
         fire(bird, 'bird-call')
     birds = sum(1 for v in voices._live if v.category == 'bird-call')
