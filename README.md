@@ -207,6 +207,8 @@ python tests/test_duck.py           # the park quietens while the scan answers
 python tests/test_pad.py            # the controller: sticks, buttons, menus
 python tests/test_pad_live.py       # boots with a REAL pad on pyglet's own loop
 python tests/test_speed.py          # speed builds, and wind rises with it
+python tests/test_voices.py         # the voice pool: what plays when a park is busy
+python tests/test_eggfield.py       # the egg grid: still true, and cheap in a heap
 ```
 
 Plain Python, no pytest. The first two read the game's code as text rather
@@ -300,8 +302,10 @@ egg-park-py/
 │   ├── prefs.py       #   settings and the settings screen
 │   ├── menu.py        #   main menu; starting and restarting a park
 │   ├── sounds.py      #   every sound, recordings, sounds.txt, catalogue
+│   ├── voices.py      #   the pool of reused OpenAL voices every sound plays on
 │   ├── soundtest.py   #   the sound test screen
 │   ├── world.py       #   eggs and baskets: spawning, pickup, deposit
+│   ├── eggfield.py    #   the egg list, with a grid so density stays cheap
 │   ├── scan.py        #   scanning, B, and the scan guide
 │   ├── flock.py       #   hatching and birds
 │   ├── tally.py       #   repeated events counted, and reported once
