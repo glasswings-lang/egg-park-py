@@ -6,7 +6,8 @@ import time
 import pyglet
 from pyglet.window import key
 
-from eggpark import chestlist, chests, config, flock, menu, pad, prefs, saving, scan, sounds, soundtest, speech, state, tally, world
+from eggpark import (chestlist, chests, config, flock, menu, pad, prefs, saving,
+                     scan, sounds, soundtest, speech, state, tally, voices, world)
 
 # ============================================================================
 # Window + input
@@ -222,7 +223,52 @@ def now():
     return time.monotonic() - _clock_start
 
 
+# Frame timing, written to the play log every FRAME_REPORT_SECONDS.
+#
+# Here because guessing was wrong three times over. A profile on another machine,
+# in a copy of the park, with the clock wound forward, is not the same thing as a
+# frame on the keeper's machine while they are actually walking -- the profile
+# turned out to exaggerate egg-laying badly, because the moment a park loads a
+# few hundred birds are all overdue to lay at once. This costs one subtraction and
+# one comparison a frame, and it means the next report of stumbling comes with
+# numbers attached.
+FRAME_REPORT_SECONDS = 5.0
+_frame_times = []
+_frames_reported_at = 0.0
+
+
+def _note_frame(milliseconds):
+    global _frames_reported_at
+    _frame_times.append(milliseconds)
+    now_t = time.monotonic()
+    if not _frames_reported_at:
+        _frames_reported_at = now_t
+        return
+    if now_t - _frames_reported_at < FRAME_REPORT_SECONDS:
+        return
+    _frames_reported_at = now_t
+    ordered = sorted(_frame_times)
+    count = len(ordered)
+    median = ordered[count // 2]
+    ninety = ordered[min(count - 1, int(count * 0.9))]
+    over = sum(1 for ms in ordered if ms > 16.7)
+    speech.log_event(
+        f'frames: {count} in {FRAME_REPORT_SECONDS:g}s, median {median:.1f}ms, '
+        f'90th {ninety:.1f}ms, worst {ordered[-1]:.1f}ms, '
+        f'{over} over 16.7ms | eggs {len(state.eggs)} birds {len(state.birds)} '
+        f'| voices {voices.live_count()}')
+    _frame_times.clear()
+
+
 def update(dt):
+    started = time.perf_counter()
+    try:
+        _update(dt)
+    finally:
+        _note_frame((time.perf_counter() - started) * 1000.0)
+
+
+def _update(dt):
     global _next_egg_call_at, _next_basket_chime_at, _next_origin_chime_at, _dist_since_step
     global _next_chest_chime_at, _speed, _move_dir
 
