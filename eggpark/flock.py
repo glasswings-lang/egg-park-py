@@ -88,9 +88,16 @@ def tick_hatching(dt):
         # list then stopped counting down at all, so a park that was overdue
         # in one lump drained at the rate its own timers allowed, which was
         # no rate at all. A test of 4,161 eggs due at once caught it.
+        # Every egg's timer still ticks at the same average rate -- but a share
+        # of the eggs each frame, each advanced by that much more time, instead
+        # of all of them every frame. At 40,000 eggs the whole-list version
+        # measured 3.5 ms a frame, a fifth of what a frame has; this is a tenth
+        # of that. A timer measured in minutes cannot tell the difference, and
+        # the LEAVING is still rationed below.
         ready = []
-        for egg in state.eggs:
-            egg['hatch_timer'] = egg.get('hatch_timer', prefs.settings['hatch_time']) - dt
+        slice_eggs, step = state.eggs.ticking(dt)
+        for egg in slice_eggs:
+            egg['hatch_timer'] = egg.get('hatch_timer', prefs.settings['hatch_time']) - step
             if egg['hatch_timer'] <= 0:
                 ready.append(egg)
         ready = ready[:config.GROUND_HATCH_PER_FRAME]

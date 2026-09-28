@@ -18,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 
-from eggpark.eggfield import CELL, EggField  # noqa: E402
+from eggpark.eggfield import CELL, TICK_SLICES, EggField  # noqa: E402
 
 failures = []
 
@@ -162,6 +162,43 @@ def main():
                 wrong += 1
     check('and it is the genuinely nearest egg, checked against the slow way '
           '50 times', wrong == 0)
+
+    # ── removing a scoop's worth, which is what nets do in one frame ─────────
+    # The first version of the field searched the list for each egg removed. At
+    # this size that cost 0.78 ms each, so one scoop of 272 eggs froze the game
+    # for about a fifth of a second -- worse than what it replaced.
+    victims = [heap[len(heap) // 2 + i] for i in range(272)]
+    t0 = time.perf_counter()
+    for doomed in victims:
+        heap.remove(doomed)
+    scoop = (time.perf_counter() - t0) * 1000
+    print(f'  removing a scoop of 272 eggs from {len(heap) + 272}: {scoop:.2f}ms')
+    check('a scoop of 272 removals costs well under one frame', scoop < 8.0)
+    check('and the field is still consistent afterwards',
+          len(heap) == 38592 - 272 and heap.check())
+    check('every removed egg is really gone',
+          all(all(e is not v for e in heap.near(v['x'], v['y'], 0.1))
+              for v in victims[:20]))
+
+    # ── the ticking slices cover everything, exactly once ───────────────────
+    field = EggField([egg(i * 3, 0) for i in range(97)])
+    dt = 1 / 60
+    seen = []
+    steps = set()
+    for _ in range(TICK_SLICES):
+        part, step = field.ticking(dt)
+        steps.add(round(step, 9))
+        seen.extend(id(e) for e in part)
+    check(f'{TICK_SLICES} frames cover all 97 eggs exactly once',
+          sorted(seen) == sorted(id(e) for e in field))
+    check(f'and each frame advances its share by {TICK_SLICES} times the step',
+          steps == {round(dt * TICK_SLICES, 9)})
+    whole, step = field.ticking(1.0)
+    check('a long step reaches every egg with the real step, not a share of it',
+          len(whole) == len(field) and step == 1.0)
+    empty = EggField()
+    part, step = empty.ticking(dt)
+    check('an empty park asks for nothing', list(part) == [] and step == dt)
 
     print()
     if failures:
