@@ -143,10 +143,7 @@ def main():
         fire(egg, 'egg-call')
     check('twenty plays of one sound made one buffer',
           len(voices._buffers) == 1)
-    # egg-call has an allowance of its own, so twenty becomes that many.
-    check(f'twenty egg calls become {voices.live_count()}, the allowance being '
-          f'{voices.CATEGORY_LIMIT["egg-call"]}',
-          voices.live_count() == voices.CATEGORY_LIMIT['egg-call'])
+    check('all twenty are playing', voices.live_count() == 20)
 
     # ── far away means no voice at all ───────────────────────────────────────
     clear()
@@ -157,20 +154,29 @@ def main():
           not played_far and voices.live_count() == 1)
 
     # ── each kind has its own allowance ──────────────────────────────────────
+    # The flock is the good part. Forty birds calling at once should be forty
+    # birds calling at once.
     clear()
     bird = tone(0.4, 660)
     for _ in range(40):
         fire(bird, 'bird-call')
     birds = sum(1 for v in voices._live if v.category == 'bird-call')
-    check(f'forty bird calls at once become {birds}, the allowance being '
-          f'{voices.CATEGORY_LIMIT["bird-call"]}',
-          birds == voices.CATEGORY_LIMIT['bird-call'])
-    check('and the rest are logged as let go',
-          voices.dropped.get('bird-call', 0) == 40 - birds)
+    check(f'forty bird calls at once are forty bird calls ({birds})', birds == 40)
+    check('nothing was let go', not voices.dropped)
 
-    # eggs still get in while the birds are singing
-    check('an egg call still plays with the birds at their limit',
-          fire(egg, 'egg-call'))
+    # eggs still get in with the flock in full voice
+    check('an egg call still plays over forty birds', fire(egg, 'egg-call'))
+
+    # An allowance still exists where more copies would be mush rather than
+    # richness: your own footsteps on top of each other.
+    clear()
+    step = tone(0.15, 200)
+    for _ in range(10):
+        fire(step, 'footstep', at_listener=True)
+    steps = sum(1 for v in voices._live if v.category == 'footstep')
+    check(f'ten footsteps at once become {steps}, the allowance being '
+          f'{voices.CATEGORY_LIMIT["footstep"]}',
+          steps == voices.CATEGORY_LIMIT['footstep'])
 
     # ── when the pool is full, what wins ─────────────────────────────────────
     clear()

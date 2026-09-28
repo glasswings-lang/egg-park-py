@@ -40,8 +40,10 @@ import math
 
 # How many sounds may play at once. OpenAL hands out 256 sources on this
 # machine; pyglet's own players (the ambience bed, the wind) want a few, so this
-# leaves plenty of room. 128 was measured comfortable.
-POOL_SIZE = 128
+# leaves room to spare. 128 was measured comfortable at about an eighth of one
+# processor core; 192 is the same work per voice and leaves the flock room to be
+# a flock.
+POOL_SIZE = 192
 
 # What each kind of sound is worth when voices run short. Higher wins. The
 # numbers only matter relative to each other: eggs and baskets are what the game
@@ -73,15 +75,27 @@ IMPORTANCE = {
 }
 DEFAULT_IMPORTANCE = 50
 
-# The most voices any one kind may hold at once. A park with thirty birds in it
-# should still sound like a park with thirty birds, not like thirty birds
-# instead of everything else.
+# The most voices any one kind may hold at once.
+#
+# These are deliberately generous, and the bird ones especially. The keeper's
+# correction, and it matters: the bird calls were good; the problem was their
+# choking up everything. The birds were never the fault — a player per sound
+# was. So the job here is not to thin the flock; it is to make sure that when
+# every voice really is busy, what gets given up is a bird rather than the egg
+# you are trying to find. That is what IMPORTANCE does, and it only comes into
+# play at genuine saturation.
+#
+# The real limiter is distance: a bird you cannot hear never takes a voice at
+# all, so a big park spread wide costs nothing for its far corners.
+#
+# Small allowances are kept only where more copies are mush rather than richness
+# — your own footsteps, eggs landing right beside each other.
 CATEGORY_LIMIT = {
-    'bird-call': 10,
-    'bird-ambient': 6,
-    'egg-call': 16,
-    'egg-laid': 4,
-    'wild-bird-flyoff': 4,
+    'bird-call': 64,
+    'bird-ambient': 40,
+    'egg-call': 32,
+    'egg-laid': 6,
+    'wild-bird-flyoff': 8,
     'footstep': 3,
 }
 
