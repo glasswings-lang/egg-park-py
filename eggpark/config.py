@@ -63,8 +63,11 @@ EGG_FALLBACK_CANDIDATES = 8
 
 # Baskets
 BASKET_AUDIBLE = 80.0
-BASKET_DEPOSIT_RADIUS = 2.0
-BASKET_DISCOVER_RADIUS = 3.5
+# As wide as a chest. At 2 m a basket was a spot you crossed in a stride, and
+# chests, at 5, were the only thing anyone could reliably stand on, so every
+# egg went into chests and the park bunched up around them (28 Oct 2026).
+BASKET_DEPOSIT_RADIUS = 5.0
+BASKET_DISCOVER_RADIUS = 7.0
 BASKET_CHIME_INTERVAL_FAR = 4.0
 BASKET_CHIME_INTERVAL_NEAR = 1.0
 
@@ -108,8 +111,8 @@ CHEST_MIN_SEPARATION = 30.0    # from every basket and chest
 CHEST_PLACE_ATTEMPTS = 24
 CHEST_AUDIBLE = 80.0
 CHEST_FORGET_DISTANCE = CHEST_AUDIBLE * 1.75
-CHEST_DEPOSIT_RADIUS = 5.0     # wider than a basket's 2: more of a place to walk onto
-CHEST_DISCOVER_RADIUS = 7.0    # basket: 3.5
+CHEST_DEPOSIT_RADIUS = 5.0     # the same as a basket's now
+CHEST_DISCOVER_RADIUS = 7.0    # basket: the same
 CHEST_CHIME_INTERVAL_FAR = 4.5
 CHEST_CHIME_INTERVAL_NEAR = 1.2
 CHEST_START_CAPACITY = 5       # a chest holds this plus...

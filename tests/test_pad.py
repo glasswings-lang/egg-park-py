@@ -168,7 +168,11 @@ def run_checks(G):
         return fired
 
     check('A scans', press('a') == ['try_scan'])
-    check('B deposits', press('b') == ['try_deposit'])
+    # B is decided on release now: a tap deposits everything, a hold pours.
+    press('b')
+    check('B pressed does nothing yet: tap or hold is decided on release', fired == [])
+    G['_on_release'](fake, 'b')
+    check('B tapped deposits', fired == ['try_deposit'])
     check('X says your status', press('x') == ['announce_status'])
     check('Start opens the menu', press('start') == ['open_main_menu'])
     check('Back opens settings', press('back') == ['open_settings'])

@@ -38,6 +38,7 @@ SHARES_VOLUME_WITH = {
     'footstep-basket': 'footstep',
     'footstep-chest': 'footstep',
     'chest-chime-found': 'chest-chime',
+    'basket-pour': 'basket-deposit',
 }
 
 # Cues deliberately absent from the sound test.

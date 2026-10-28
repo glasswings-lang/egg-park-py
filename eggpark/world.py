@@ -338,6 +338,7 @@ def reset_world():
     state.player.update({'x': 0.0, 'y': 0.0, 'z': 0.0, 'yaw': 0.0})
     _last_seen_counts.update(found=0, carry=0)
     forget_hands_full()
+    cancel_pour()                      # a held F must not pour into the new park
     tally.forget_all()
     pad.forget_run()
     from eggpark import chestlist      # late: chestlist imports this file
@@ -594,11 +595,14 @@ def try_discover_basket():
             return
 
 
+def _cap_of(name):
+    return chest_cap() if name == 'Chest' else basket_cap()
+
+
 def try_deposit():
-    """Bound to F. Drop everything from hand into the chest or basket you're on."""
-    on, name, cap = chests.current_chest(), 'Chest', chest_cap()
-    if on is None:
-        on, name, cap = current_basket(), 'Basket', basket_cap()
+    """A tap of F. Drop everything from hand into the chest or basket you're on."""
+    on, name = current_spot()
+    cap = _cap_of(name)
     if on is None:
         sounds.fire_fumble()
         speech.say('Not standing on a basket or chest.')
@@ -632,9 +636,122 @@ def try_deposit():
         speech.say(f'Deposited {n}. {name} {len(on["eggs"])} of {cap}.')
 
 
+# ---------------------------------------------------------------- pouring
+#
+# Holding F (B on the pad) pours eggs in one at a time, slow at first and then
+# quicker, until you let go: a way to put SOME of what you carry in one basket
+# and the rest in the next, without a number to choose or keep in your head.
+# Each egg is one knock (sounds.fire_pour_tick), rising as the spot fills, and
+# letting go says how many went in. A tap is unchanged: everything, at once.
+#
+# A tap is told from a hold on the way up, so it lands on release rather than
+# on press. POUR_HOLD is how long before a press counts as a hold.
+POUR_HOLD = 0.35        # seconds held before pouring starts
+POUR_SLOWEST = 0.25     # seconds between the first eggs
+POUR_FASTEST = 0.05     # the quickest it gets, twenty a second
+POUR_RAMP = 0.88        # each egg comes this much sooner than the one before
+
+_pour = None
+
+
+def press_deposit():
+    """F or pad B went down. Nothing happens yet: see release_deposit."""
+    global _pour
+    now = time.monotonic()
+    _pour = {'next_at': now + POUR_HOLD, 'interval': POUR_SLOWEST,
+             'count': 0, 'spot': None, 'name': None, 'done': False}
+
+
+def cancel_pour():
+    """The window lost focus, a menu opened, a new park: stop without a word."""
+    global _pour
+    _pour = None
+
+
+def release_deposit():
+    """F or pad B came up. A tap deposits everything; a pour says its total."""
+    global _pour
+    p, _pour = _pour, None
+    if p is None:
+        return
+    if p['count'] == 0 and not p['done']:
+        try_deposit()
+    elif not p['done']:
+        _say_poured(p)
+
+
+def _say_poured(p, why=''):
+    on, name = p['spot'], p['name']
+    cap = _cap_of(name)
+    log_counts(f'poured {p["count"]}, {name.lower()} now {len(on["eggs"])}')
+    line = f'{why}Poured {p["count"]}. {name} {len(on["eggs"])} of {cap}.'
+    if state.held:
+        line += f' {len(state.held)} still held.'
+    speech.say(line)
+    p['done'] = True
+
+
+def tick_pour():
+    """Every frame: while F is held, put the next egg in when it's due."""
+    p = _pour
+    if p is None or p['done']:
+        return
+    now = time.monotonic()
+    if now < p['next_at']:
+        return
+    on, name = current_spot()
+    if p['spot'] is None:
+        # The first egg of a hold. Anything a tap would refuse (nowhere to
+        # stand, not found yet, empty hands, full), the tap says why.
+        if (on is None or not on['discovered'] or not state.held
+                or len(on['eggs']) >= _cap_of(name)):
+            p['done'] = True
+            try_deposit()
+            return
+        p['spot'], p['name'] = on, name
+    elif on is not p['spot']:
+        _say_poured(p, 'Walked off. ')
+        return
+    cap = _cap_of(p['name'])
+    if len(on['eggs']) >= cap:
+        sounds.fire_basket_full_sound()
+        _say_poured(p, 'Full. ')
+        return
+    on['eggs'].append(state.held.pop(0))
+    p['count'] += 1
+    sounds.fire_pour_tick(on, len(on['eggs']) / cap)
+    forget_hands_full()
+    if not state.held:
+        _say_poured(p, 'Hands empty. ')
+        return
+    p['interval'] = max(POUR_FASTEST, p['interval'] * POUR_RAMP)
+    p['next_at'] = now + p['interval']
+
+
 def current_basket():
-    """Return the basket the player is standing on, or None."""
+    """Return the nearest basket the player is standing on, or None."""
+    best, best_d = None, config.BASKET_DEPOSIT_RADIUS
     for b in state.baskets:
-        if math.hypot(b['x'] - state.player['x'], b['y'] - state.player['y']) <= config.BASKET_DEPOSIT_RADIUS:
-            return b
-    return None
+        d = math.hypot(b['x'] - state.player['x'], b['y'] - state.player['y'])
+        if d <= best_d:
+            best, best_d = b, d
+    return best
+
+
+def current_spot():
+    """(the basket or chest you're standing on, 'Basket' or 'Chest'), or
+    (None, None). If you're on both, the nearer one: now that baskets are as
+    wide as chests, a basket beside a chest must not be swallowed by it."""
+    chest, basket = chests.current_chest(), current_basket()
+    if chest is not None and basket is not None:
+        px, py = state.player['x'], state.player['y']
+        if (math.hypot(basket['x'] - px, basket['y'] - py)
+                < math.hypot(chest['x'] - px, chest['y'] - py)):
+            chest = None
+        else:
+            basket = None
+    if chest is not None:
+        return chest, 'Chest'
+    if basket is not None:
+        return basket, 'Basket'
+    return None, None

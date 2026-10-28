@@ -322,6 +322,19 @@ you like; the engine plays them at the right positions.
   - `basket-deposit-2.wav`
   - `basket-deposit-3.wav`
 
+### `basket-pour` — 1 variant
+- **Trigger**: F (or B on the controller) HELD on a basket or chest: eggs go
+  in one at a time, starting slow and speeding up, until you let go. A quick
+  tap still deposits everything, with `basket-deposit`.
+- **Spatial**: yes, at the basket or chest.
+- **Duration**: under 0.1 s. It repeats up to about 20 times a second, so
+  anything longer smears into a buzz.
+- **Character**: One small soft knock, one egg. The game raises its pitch by up
+  to an octave as the basket fills, so record it at its lowest.
+- **Volume**: shares the basket deposit slider.
+- **Files** (1):
+  - `basket-pour.wav`
+
 ### `basket-full` — 1 variant
 - **Trigger**: F pressed when basket is at capacity.
 - **Spatial**: no.
@@ -699,6 +712,7 @@ work outward.
 | refuse                 | 1     |
 | basket-discover        | 1     |
 | basket-deposit         | 3     |
+| basket-pour            | 1     |
 | basket-full            | 1     |
 | hatch-in-basket        | 3     |
 | egg-laid               | 1     |
@@ -717,9 +731,9 @@ work outward.
 | menu-open              | 1     |
 | menu-close             | 1     |
 | origin                 | 2     |
-| **Total**              | **60** |
+| **Total**              | **61** |
 
-60 files for a complete sound replacement. Variant counts are
+61 files for a complete sound replacement. Variant counts are
 suggestions — record more if you want a bigger pool to draw from, fewer
 if you're happy with less variety. The engine doesn't care how many.
 

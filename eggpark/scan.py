@@ -209,6 +209,9 @@ def _scan_guide_still_wanted(g, dist):
         # Chosen from the chest list (eggpark/chestlist.py): full or not, near
         # or far, you asked for this one, so it leads until you're on it.
         return g['target'] in state.chests and dist > config.CHEST_DEPOSIT_RADIUS
+    if g['kind'] == 'picked basket':
+        # The same, for one chosen from the basket list.
+        return g['target'] in state.baskets and dist > config.BASKET_DEPOSIT_RADIUS
     if g['kind'] == 'home':
         if dist <= HOME_ARRIVED:
             speech.say('You are home.')

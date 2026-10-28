@@ -145,12 +145,12 @@ walks you slowly up to an egg.
 | **Right stick** | Turn, proportionally |
 | **Right trigger** | Hold to run, for as long as you hold it |
 | **A** | Scan |
-| **B** | Deposit |
+| **B** | Deposit everything; hold it to pour eggs in one at a time |
 | **X** | Your status |
 | **Y**, tapped | Read out the controller controls |
 | **D-pad up / down** | Lead to a found / unfound basket |
 | **D-pad right / left** | Lead to a found / unfound chest |
-| **Left trigger** | The chest list: every chest you've found, nearest first, and what its birds get. D-pad up and down choose, A leads you there, B closes. The park keeps running |
+| **Left trigger** | The chest list: every chest you've found, nearest first, and what its birds get. D-pad up and down choose, left and right switch to the basket list and back, A leads you there, B closes. The park keeps running |
 | **Hold Y + D-pad** | Ask: heading / carrying / the park / everything |
 | **Right stick, clicked** | Lead home, to where the park began |
 | **Bumpers** | Volume down / up |
@@ -250,7 +250,9 @@ still deciding what you want to do.
 | **C**               | Guide to the nearest found chest with room       |
 | **Shift+C**         | Guide to the nearest chest not yet found         |
 | **G**               | Chest list: Up / Down choose, Enter leads, Esc closes |
-| **F**               | Deposit held eggs at the basket you're on        |
+| **Shift+G**         | Basket list, the same, with each basket's room   |
+| **F**, tapped       | Deposit everything held at the basket or chest you're on |
+| **F**, held         | Pour eggs in one at a time, quicker as you hold; let go to stop |
 | **P**               | Speak status (heading, distances, counts, caps)  |
 | **Shift+H**         | Guide home, to where the park began              |
 | **R**               | Reload sample bank (re-scan samples folder)      |

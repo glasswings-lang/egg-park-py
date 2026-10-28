@@ -37,7 +37,9 @@ CONTROL_HELP = (
            'Shift C to the nearest chest you have not found. '
            'G lists every chest you have found and what its birds get: '
            'up and down arrows choose, Enter leads you there, Escape or G closes it. '
-           'F deposits at a basket. P speaks your status. '
+           'Shift G does the same for every basket you have found, and how much room each has. '
+           'F deposits everything at a basket or chest. Hold F to pour eggs in '
+           'one at a time, and let go to stop. P speaks your status. '
            'Shift H leads you home, to where the park began.'),
     ('Set up', 'O opens settings. Left and right square brackets '
                'lower and raise the volume. R reloads the sample bank.'),
@@ -161,7 +163,7 @@ def on_key_press(symbol, modifiers):
     elif symbol == key.P:
         announce_status()
     elif symbol == key.F:
-        world.try_deposit()
+        world.press_deposit()     # tap or hold: decided on release
     elif symbol == key.SPACE:
         scan.try_scan()
     elif symbol == key.B and modifiers & key.MOD_SHIFT:
@@ -174,8 +176,10 @@ def on_key_press(symbol, modifiers):
         chests.try_scan_unfound_chests()
     elif symbol == key.C:
         chests.try_scan_found_chests()
+    elif symbol == key.G and modifiers & key.MOD_SHIFT:
+        chestlist.toggle('basket')
     elif symbol == key.G:
-        chestlist.toggle()
+        chestlist.toggle('chest')
     elif symbol == key.R:
         sounds.reload_sample_bank()
     elif symbol == key.O:
@@ -196,13 +200,28 @@ def on_activate():
 
 
 def on_deactivate():
+    # A held F whose release went to another window would pour forever.
+    world.cancel_pour()
     speech.say('Window lost focus. Alt-tab back to the Egg Park window.')
+
+
+def on_key_release(symbol, modifiers):
+    """Only F: a tap deposits everything, a hold has been pouring. Returns
+    nothing, so the key-state handler below still hears every release."""
+    if symbol != key.F:
+        return None
+    if menu._in_main_menu or prefs._in_settings or soundtest._in_sound_test:
+        world.cancel_pour()
+    else:
+        world.release_deposit()
+    return None
 
 
 # Push our custom handlers as a separate frame from KeyStateHandler.
 # Using @window.event would clobber the keys frame in pyglet 2.x.
 window.push_handlers(
     on_key_press=on_key_press,
+    on_key_release=on_key_release,
     on_activate=on_activate,
     on_deactivate=on_deactivate,
 )
@@ -398,6 +417,7 @@ def _update(dt):
     tally.flush_all(t)
 
     scan.tick_scan_guide(t)
+    world.tick_pour()
 
     # Egg call — round-robin over all eggs in audible range. Each call
     # fires from the nearest egg; the nearest changes as you move so you

@@ -149,10 +149,13 @@ def try_discover_chest():
 
 
 def current_chest():
+    """The nearest chest you're standing on, or None."""
+    best, best_d = None, config.CHEST_DEPOSIT_RADIUS
     for c in state.chests:
-        if math.hypot(c['x'] - state.player['x'], c['y'] - state.player['y']) <= config.CHEST_DEPOSIT_RADIUS:
-            return c
-    return None
+        d = math.hypot(c['x'] - state.player['x'], c['y'] - state.player['y'])
+        if d <= best_d:
+            best, best_d = c, d
+    return best
 
 
 # ---------------------------------------------------------------- scanning

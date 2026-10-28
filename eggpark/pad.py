@@ -18,7 +18,7 @@ to turn the D-pad into questions rather than actions.
   Click it      lead me home, to where the park began (Shift+H)
   Right trigger hold to run, for as long as you hold it. The same as Shift.
   A             scan (Space)
-  B             deposit (F)
+  B             deposit everything (F); hold it to pour eggs in one at a time
   X             your full status (P)
   Y (tap)       read out the controls (H)
   D-pad up      lead me to a basket I have found, with room (B)
@@ -26,7 +26,8 @@ to turn the D-pad into questions rather than actions.
   D-pad right   lead me to a chest I have found, with room (C)
   D-pad left    lead me to a chest I have not found (Shift+C)
   Left trigger  the chest list: every chest found, and what its birds get (G).
-                While it's open, D-pad up and down choose, A picks, B closes;
+                While it's open, D-pad up and down choose, left and right
+                switch to the basket list and back (Shift+G), A picks, B closes;
                 the sticks still walk and turn. See eggpark/chestlist.py.
   HOLD Y, then
     D-pad up    which way am I facing
@@ -320,6 +321,8 @@ def _on_dpad(controller, vector):
             chestlist.move(-1)
         elif down:
             chestlist.move(+1)
+        elif left or right:
+            chestlist.switch()    # chests <-> baskets
         return
     if _y_held:
         # Held Y turns the D-pad into questions. Borrowed from Periphery
@@ -354,6 +357,14 @@ def _on_release(controller, name):
     """Y is the only button that does anything on release: tapping it reads
     the controls out, but only if it was not being held as the modifier."""
     global _y_held, _y_used_as_modifier
+    if name == 'b':
+        # A tap of B deposits everything, a hold has been pouring.
+        from eggpark import menu, prefs, soundtest, world
+        if menu._in_main_menu or prefs._in_settings or soundtest._in_sound_test:
+            world.cancel_pour()
+        else:
+            world.release_deposit()
+        return
     if name != 'y':
         return
     _y_held = False
@@ -418,7 +429,7 @@ def _on_button(controller, name):
     if name == 'a':
         scan.try_scan()
     elif name == 'b':
-        world.try_deposit()
+        world.press_deposit()     # tap or hold: decided on release
     elif name == 'x':
         game.announce_status()
     elif name == 'rightstick':
@@ -439,12 +450,14 @@ PAD_HELP = (
     'Controller. Left stick walks, and how far you push it is how fast you '
     'go. Click the left stick to run, and click it again to stop; holding '
     'the right trigger runs too. Right stick turns, left and right. '
-    'A scans. B deposits. X says your status. Y on its own reads this out. '
+    'A scans. B deposits everything; hold B to pour eggs in one at a time, '
+    'and let go to stop. X says your status. Y on its own reads this out. '
     'On the D-pad: up leads you to a basket you have found with room, '
     'down to a basket you have not found, right to a chest you have found, '
     'left to a chest you have not found. '
     'The left trigger lists every chest you have found and what its birds get: '
-    'D-pad up and down choose, A leads you there, B or the trigger again closes it. '
+    'D-pad up and down choose, left and right switch between chests and baskets, '
+    'A leads you there, B or the trigger again closes it. '
     'Hold Y and press the D-pad to ask instead: up for your heading, '
     'down for what you are carrying, left for what is in the park, '
     'right for everything. '

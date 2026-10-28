@@ -411,6 +411,16 @@ _footstep_chest_source = _knock_burst(
     FOOTSTEP_CHEST_KNOCK_HZ, 1500.0, ring=0.07, duration=0.22,
     attack=0.004, decay=0.11, release=0.10)
 
+# Pouring: hold F (or B on the pad) and eggs go in one at a time, one small
+# knock each. It is how many you've put in, counted by ear, so it has to be
+# short enough to run quickly without smearing. F#3 is off the pentatonic, like
+# the other basket-side cues (full is Db3, the home beacon Eb3), and it climbs
+# up to an octave as the basket or chest fills: the pitch is how full it is.
+POUR_KNOCK_HZ = 185.0   # F#3
+_pour_source = _knock_burst(
+    POUR_KNOCK_HZ, 1800.0, ring=0.03, duration=0.07,
+    attack=0.003, decay=0.035, release=0.03)
+
 # The bird leaving, built here because it uses the low-pass above. Flat
 # envelope on purpose: each wingbeat's shape, and the fade as the bird gets
 # away, come from _wingbeat_generator. A long ADSR decay on top of that
@@ -584,7 +594,7 @@ os.makedirs(SAMPLES_DIR, exist_ok=True)
 _SAMPLE_CATEGORIES = (
     'egg-call', 'basket-chime', 'basket-chime-found',
     'scan-egg-ping', 'scan-basket-ping', 'scan-guide', 'bird-call',
-    'egg-collect', 'refuse', 'basket-discover', 'basket-deposit',
+    'egg-collect', 'refuse', 'basket-discover', 'basket-deposit', 'basket-pour',
     'basket-full', 'hatch-in-basket', 'egg-laid', 'wild-bird-flyoff',
     'chest-chime', 'chest-chime-found', 'chest-discover', 'scan-chest-ping',
     'footstep', 'footstep-basket', 'footstep-chest',
@@ -1194,6 +1204,15 @@ def fire_deposit_sound(basket):
           category='basket-deposit')
 
 
+def fire_pour_tick(spot, fill):
+    """One egg poured in. `fill` 0..1 is how full the spot is now; the knock
+    rises an octave across it. Shares the deposit's volume slider: pouring is
+    depositing, one egg at a time."""
+    src = pick_source('basket-pour', fallback=_pour_source)
+    _play(src, position=(spot['x'], spot['y'], spot['z']), volume=0.5,
+          category='basket-deposit', pitch=1.0 + max(0.0, min(1.0, fill)))
+
+
 def fire_basket_full_sound():
     _play(pick_source('basket-full', fallback=_basket_full_source), volume=0.5,
           category='basket-full')
@@ -1301,9 +1320,10 @@ def fire_footstep():
     #
     # One volume category for every surface: "Volume: footsteps" has to mean
     # all of them. Only the sample category and the synth fallback change.
-    if chests.current_chest() is not None:
+    _spot, surface = world.current_spot()   # the nearer one, as F decides
+    if surface == 'Chest':
         src = pick_source('footstep-chest', fallback=_footstep_chest_source)
-    elif world.current_basket() is not None:
+    elif surface == 'Basket':
         src = pick_source('footstep-basket', fallback=_footstep_basket_source)
     else:
         src = pick_source('footstep', fallback=_footstep_source)
@@ -1392,6 +1412,10 @@ SOUND_CATALOGUE = [
     ('basket-deposit', 'Egg deposited',
      'An egg went from your hands into a basket. It is safe now.',
      lambda: _deposit_source),
+    ('basket-pour', 'One egg poured in',
+     'Holding F or B pours eggs in one at a time, one knock each. It climbs '
+     'as the basket or chest fills.',
+     lambda: _pour_source),
     ('basket-full', 'Basket full',
      'That basket has all it can hold. Good news: you filled it.',
      lambda: _basket_full_source),
