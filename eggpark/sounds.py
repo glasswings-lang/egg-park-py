@@ -716,7 +716,12 @@ def _parse_sounds_list():
         # line needing a # in front of it — a hundred lines each starting
         # with a hash is a hundred spoken "hash"es to a screen reader, which
         # made the file that explains everything the hardest thing to read.
-        if raw[:1] in (' ', '\t'):
+        # Only a DEEP indent marks an example: the template's are four spaces.
+        # Every line it offers to fill in is "# cue = ", and deleting the # as
+        # it says leaves " cue = " with one space in front: 28 Oct 2026, a
+        # footstep filled in exactly that way was ignored. One to three
+        # spaces is that, and is read as an instruction.
+        if raw[:1] == '\t' or raw[:4] == '    ':
             # Indented: a worked example, so ignored. But if it names a real
             # sound AND points at a file that actually exists, it isn't an
             # example — it's someone's real line that picked up a stray
@@ -732,8 +737,8 @@ def _parse_sounds_list():
                         else os.path.join(config._script_dir, path)) if path else ''
                 if cue in _SAMPLE_CATEGORIES and full and os.path.isfile(full):
                     _sound_list_problems.append(
-                        (n, f'line {n} for {cue} starts with a space, so it '
-                            'is being treated as an example and ignored. '
+                        (n, f'line {n} for {cue} is indented like the examples, '
+                            'so it is being treated as one and ignored. '
                             'Move it to the very start of the line.'))
             continue
         if raw.lstrip().startswith('#'):
@@ -820,12 +825,13 @@ def write_sounds_template(force=False):
         'HOW THIS FILE IS READ, IF YOU ARE CURIOUS',
         '',
         'A line counts as an instruction only if it has an equals sign in it,',
-        'starts at the very beginning of the line, and does not start with a',
+        'is not indented like the examples, and does not start with a',
         '# symbol.',
         '',
-        'So: sentences like this one are ignored. Indented lines are ignored,',
-        'which is why the examples above do nothing. And a # at the start',
-        'switches a line off.',
+        'So: sentences like this one are ignored. Lines indented by four',
+        'spaces or a tab are ignored, which is why the examples above do',
+        'nothing. A space or two left over from deleting a # is fine. And a',
+        '# at the start switches a line off.',
         '',
         'You can write yourself notes anywhere in here.',
         '',
