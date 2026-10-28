@@ -1310,13 +1310,14 @@ def fire_bird_call(bird):
 def fire_footstep():
     # Non-positional — these are *your* footsteps, they play at the listener.
     #
-    # The surface changes on BASKET_DEPOSIT_RADIUS (via current_basket, the
-    # same test F uses), not the wider discovery radius — so the ground
+    # The surface changes on BASKET_DEPOSIT_RADIUS (via world.current_spot,
+    # the same test F uses), not the wider discovery radius — so the ground
     # changes at exactly the point depositing starts working. Hearing it
     # change and then being told 'not standing on a basket' would be worse
     # than no cue at all.
     #
-    # Chests the same, on CHEST_DEPOSIT_RADIUS. Checked first, as F does.
+    # Chests the same, on CHEST_DEPOSIT_RADIUS. On both at once, the nearer
+    # one is the surface, as it is for F.
     #
     # One volume category for every surface: "Volume: footsteps" has to mean
     # all of them. Only the sample category and the synth fallback change.

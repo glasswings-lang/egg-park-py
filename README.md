@@ -280,9 +280,15 @@ chimes, bird calls) — useful if you just want to wander the soundscape.
    capacity by 1 and bumps your carry capacity every 3 baskets. A found
    basket also **changes voice** — same note and position, brighter timbre
    — so you can hear at a distance which ones you've already claimed.
-   Standing within depositing range changes your **footsteps** too, which
-   is how you know you're on the spot rather than merely near it.
-5. Stand on a discovered basket, press F to deposit held eggs.
+   Standing within depositing range (5 m, for baskets and chests alike)
+   changes your **footsteps** too, which is how you know you're on the spot
+   rather than merely near it.
+5. Stand on a discovered basket and tap F to deposit everything you hold,
+   or hold F to pour eggs in one at a time: one knock each, climbing as the
+   basket fills, quicker the longer you hold. Let go and it says how many
+   went in, so you can spread what you carry across several baskets.
+   Shift+G lists every basket you've found with its room, and G every chest;
+   pick one and you're led there. Lost? Shift+H leads you home.
 6. Eggs in baskets continue to tick. When the timer runs out, the egg
    hatches into one of your birds — joins the world, wanders the park,
    calls periodically. If a held egg hatches before you deposit, the bird
@@ -315,7 +321,7 @@ egg-park-py/
 │   ├── tally.py       #   repeated events counted, and reported once
 │   ├── pad.py         #   the controller: sticks, buttons, menus
 │   ├── chests.py      #   chests: gifts, finding, C and Shift+C
-│   ├── chestlist.py   #   the chest list: G and the left trigger
+│   ├── chestlist.py   #   the chest and basket lists: G, Shift+G, the left trigger
 │   ├── game.py        #   window, keys, per-frame update, status
 │   └── saving.py      #   saving and loading the park
 ├── tests/             # see Tests above

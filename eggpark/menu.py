@@ -84,9 +84,11 @@ def main_menu_activate():
 
 
 def _speak_world_intro():
-    speech.say('W A S D move. Q E turn. Space scans. F deposits. P reports status. '
-        'Escape returns to the menu. Find eggs, deposit at baskets, '
-        'hatch birds.')
+    speech.say('W A S D move. Q E turn. Space scans. F deposits, and holding F '
+        'pours eggs in one at a time. G lists your chests and Shift G your '
+        'baskets. Shift H leads you home. P reports status. H says every '
+        'control, and on a controller, tap Y. Escape returns to the menu. '
+        'Find eggs, deposit at baskets, hatch birds.')
 
 
 def start_game():

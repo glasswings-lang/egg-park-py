@@ -303,7 +303,7 @@ you like; the engine plays them at the right positions.
   - `refuse.wav`
 
 ### `basket-discover` — 1 variant
-- **Trigger**: First time walking within 2 m of a basket. Fires once per
+- **Trigger**: First time walking within 7 m of a basket. Fires once per
   basket, ever. Bumps capacity and announces the discovery.
 - **Spatial**: yes, at basket position.
 - **Duration**: 1.0–2.0 s.
@@ -313,7 +313,9 @@ you like; the engine plays them at the right positions.
   - `basket-discover.wav`
 
 ### `basket-deposit` — 3 variants
-- **Trigger**: F pressed while on a discovered basket with eggs in hand.
+- **Trigger**: F (or B on the controller) tapped while on a discovered
+  basket or chest with eggs in hand: everything held goes in at once.
+  Holding it pours instead; see `basket-pour`.
 - **Spatial**: yes, at basket position.
 - **Duration**: 0.4–0.8 s.
 - **Character**: Soft thunk + slight settle. Eggs nestling into the basket.
@@ -336,7 +338,7 @@ you like; the engine plays them at the right positions.
   - `basket-pour.wav`
 
 ### `basket-full` — 1 variant
-- **Trigger**: F pressed when basket is at capacity.
+- **Trigger**: F pressed when basket is at capacity, or a pour fills it.
 - **Spatial**: no.
 - **Duration**: 0.15–0.30 s.
 - **Character**: Same family as `refuse` but heftier — "this basket has
@@ -453,7 +455,7 @@ you like; the engine plays them at the right positions.
 
 ### `footstep-basket` — 3 variants
 - **Trigger**: Same as `footstep`, but fires instead of it while you are
-  stood within depositing range of a basket (2 m). The surface underfoot
+  stood within depositing range of a basket (5 m). The surface underfoot
   changes at exactly the point **F** starts working.
 - **Spatial**: no (plays at listener — still your own feet).
 - **Duration**: 0.15–0.30 s. May run slightly longer than open-ground

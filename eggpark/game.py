@@ -38,6 +38,7 @@ CONTROL_HELP = (
            'G lists every chest you have found and what its birds get: '
            'up and down arrows choose, Enter leads you there, Escape or G closes it. '
            'Shift G does the same for every basket you have found, and how much room each has. '
+           'With a list open, G and Shift G switch between them. '
            'F deposits everything at a basket or chest. Hold F to pour eggs in '
            'one at a time, and let go to stop. P speaks your status. '
            'Shift H leads you home, to where the park began.'),

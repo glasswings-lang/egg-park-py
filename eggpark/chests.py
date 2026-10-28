@@ -9,9 +9,11 @@ from eggpark import config, scan, sounds, speech, state, world
 # Chests
 # ============================================================================
 #
-# A chest is a basket's bigger cousin. You walk onto it to find it, press F
-# to put eggs in, and they hatch into birds whose home is the chest. It's
-# wider (CHEST_DEPOSIT_RADIUS, CHEST_DISCOVER_RADIUS), holds more
+# A chest is a basket's bigger cousin. You walk onto it to find it, tap F to
+# put eggs in (or hold F to pour them in one at a time), and they hatch into
+# birds whose home is the chest. It is the same size to stand on as a basket
+# (CHEST_DEPOSIT_RADIUS, CHEST_DISCOVER_RADIUS; baskets grew to match it on
+# 28 Oct 2026), holds more
 # (world.chest_cap), and has three gift slots, rolled once, the moment you
 # find it.
 #
