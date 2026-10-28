@@ -84,8 +84,8 @@ It doubles as the recording workstation:
 | --- | --- |
 | **S** | Switch between your recordings and the built-in sounds |
 | **R** | Reload recordings from disk — no restart after saving a take |
-
 | **F** | Open `sounds.txt`, where you point at your own recordings |
+| **F1** | Choose a recording for this sound in the Windows Open dialog. **Alt+P** there previews the selected file. The choice is written into `sounds.txt` and loaded at once |
 | **P** | Read out any problems with that file |
 
 So the loop is: record, **R**, **Enter** to hear it, **S** to hear what it
@@ -214,6 +214,7 @@ python tests/test_pad_live.py       # boots with a REAL pad on pyglet's own loop
 python tests/test_speed.py          # speed builds, and wind rises with it
 python tests/test_voices.py         # the voice pool: what plays when a park is busy
 python tests/test_eggfield.py       # the egg grid: still true, and cheap in a heap
+python tests/test_choose_recording.py  # F1 in the sound test: the Open dialog, Alt+P, sounds.txt
 ```
 
 `tests/test_no_private_strings.py` is the guard against private names and

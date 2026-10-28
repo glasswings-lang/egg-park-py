@@ -93,6 +93,8 @@ def on_key_press(symbol, modifiers):
             sounds.speak_sound_list_problems()
         elif symbol == key.F:
             soundtest.open_sounds_file()
+        elif symbol == key.F1:
+            soundtest.choose_recording()
         else:
             return None
         return pyglet.event.EVENT_HANDLED
@@ -197,12 +199,16 @@ def on_key_press(symbol, modifiers):
 
 
 def on_activate():
+    if soundtest._choosing_file:
+        return          # back from the sound test's file dialog; nothing to announce
     speech.say('Window focused.')
 
 
 def on_deactivate():
     # A held F whose release went to another window would pour forever.
     world.cancel_pour()
+    if soundtest._choosing_file:
+        return          # the sound test's file dialog took focus; NVDA reads that
     speech.say('Window lost focus. Alt-tab back to the Egg Park window.')
 
 

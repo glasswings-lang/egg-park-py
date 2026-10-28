@@ -4,6 +4,7 @@ import glob
 import math
 import os
 import random
+import re
 import time
 
 import pyglet
@@ -847,6 +848,9 @@ def write_sounds_template(force=False):
         '    R             load this file again, after you save it',
         '    P             read out anything wrong with this file',
         '    F             open this file',
+        '    F1            choose a recording for this sound from your files;',
+        '                  Alt P plays the one you are on before you pick it.',
+        '                  It is written in here for you.',
         '',
         '',
         'THE SOUNDS',
@@ -905,6 +909,79 @@ def _add_missing_cues():
     return _write_sounds_list(tail + nl.join(add).encode('utf-8') + nl.encode())
 
 
+def _line_cue(raw):
+    """The cue a sounds.txt line switches on, or None if it switches nothing on.
+
+    The same reading as _parse_sounds_list: deep indents are examples, a # is
+    switched off, and a line with no equals sign is prose.
+    """
+    if raw[:1] == '\t' or raw[:4] == '    ' or raw.lstrip().startswith('#'):
+        return None
+    line = raw.split('#', 1)[0].strip()
+    if '=' not in line:
+        return None
+    return line.split('=', 1)[0].strip().lower().replace(' ', '-').replace('_', '-')
+
+
+def assign_in_sounds_list(category, path):
+    """Make `path` the one recording for `category`, in sounds.txt. Says nothing.
+
+    For choosing a file from the sound test (F1). Writes the line someone would
+    have written by hand, so the file stays the one place that says which
+    recording each sound uses:
+
+      * the empty "# cue = " line the template gave it is filled in;
+      * a line that already switched the cue on is switched off with a # rather
+        than deleted, so an earlier choice can be got back by hand, and the new
+        line goes straight after it;
+      * a cue with neither gets its description and the line at the end.
+
+    Returns '' when written, or what went wrong, to be said aloud.
+    """
+    if '#' in path:
+        # Everything after a # on a line is a note, so the path would be cut.
+        return 'That file has a hash sign in its name or folder, which sounds dot text cannot hold.'
+    write_sounds_template()            # so there is a file, with this cue in it
+    try:
+        with open(SOUNDS_LIST_FILE, 'rb') as f:
+            raw = f.read()
+    except Exception as exc:
+        return f'Could not read sounds dot text: {exc}'
+    # surrogateescape: anything that isn't UTF-8 goes back out byte for byte.
+    text = raw.decode('utf-8', errors='surrogateescape')
+    nl = '\r\n' if '\r\n' in text else '\n'
+    lines = text.split(nl)
+    new_line = f'{category} = {path}'
+
+    switched_off = []
+    for i, line in enumerate(lines):
+        if _line_cue(line) == category:
+            lines[i] = '# ' + line.lstrip()
+            switched_off.append(i)
+
+    # Not one indented like the examples: the worked example near the top of
+    # the file is "    # footstep = " too, and filling THAT in would rewrite
+    # the instructions instead of the setting.
+    empty = re.compile(r'#\s*' + re.escape(category) + r'\s*=\s*$')
+    blank = next((i for i, line in enumerate(lines)
+                  if i not in switched_off and line[:1] != '\t' and line[:4] != '    '
+                  and empty.fullmatch(line.strip())), None)
+    if blank is not None:
+        lines[blank] = new_line
+    elif switched_off:
+        lines.insert(switched_off[-1] + 1, new_line)
+    else:
+        description = dict(_cue_entries()).get(category, category)
+        while lines and lines[-1] == '':
+            lines.pop()
+        lines += ['', description, new_line, '']
+
+    data = nl.join(lines).encode('utf-8', errors='surrogateescape')
+    if not _write_sounds_list(data):
+        return 'Could not save sounds dot text.'
+    return ''
+
+
 def _write_sounds_list(data):
     try:
         tmp = SOUNDS_LIST_FILE + '.tmp'
@@ -915,6 +992,16 @@ def _write_sounds_list(data):
     except Exception as exc:
         _sound_list_problems.append((0, f'could not write sounds.txt: {exc}'))
         return False
+
+
+# What sounds.txt asked for at the last load, {cue: [paths]}.
+_sound_list_paths = {}
+
+
+def sound_list_path_for(category):
+    """The first file sounds.txt names for this cue at the last load, or ''."""
+    paths = _sound_list_paths.get(category)
+    return paths[0] if paths else ''
 
 
 def sound_list_problem_for(category):
@@ -938,7 +1025,9 @@ def rebuild_sample_bank():
     """
     _sample_bank.clear()
     _load_sample_bank()
-    for cue, paths in _parse_sounds_list().items():
+    _sound_list_paths.clear()
+    _sound_list_paths.update(_parse_sounds_list())
+    for cue, paths in _sound_list_paths.items():
         sources = [s for s in (_load_one_sample(p) for p in paths) if s]
         if sources:
             _sample_bank[cue] = sources
