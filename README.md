@@ -228,6 +228,10 @@ moves onto a hidden Windows desktop with no screen, keyboard or speakers
 attached, with speech off, so it can't take focus from a screen reader or
 make a sound. If it can't get that hidden desktop, it refuses to run.
 
+GPU drivers may refuse to run OpenGL on a hidden desktop, so the tests load
+Mesa's software OpenGL from `tests/mesa/` instead. Only the tests do this;
+the game uses your graphics card as normal. See `THIRD-PARTY.md`.
+
 `test_sound_wiring.py` is the one that matters when changing sounds: adding
 a cue means touching four separate places, and forgetting one fails
 silently. It prints the checklist when it catches you.
