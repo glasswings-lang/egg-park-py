@@ -86,6 +86,46 @@ def run_checks(G):
     ran, _ = walk(5, True)
     check(f'run speed setting is honoured ({ran:.1f} m in 5 s at 8 m/s)',
           abs(ran - expected(8.0, 5)) < 0.5)
+    print('slowing down from a run:')
+    # The stride used to follow the run KEY, so letting go of it switched to
+    # the walking stride while braking still had you near full speed: at 12
+    # m/s that was 12 steps a second, nearly double the running rate, until
+    # the speed caught up. Slowing down must never quicken the steps.
+    G['settings']['run_speed'] = 12.0
+    frame = [0]
+    times = []
+    G['fire_footstep'] = lambda *a, **k: times.append(frame[0] / 60)
+
+    def drive(seconds):
+        for _ in range(int(seconds * 60)):
+            frame[0] += 1
+            G['update'](1 / 60)
+
+    def gaps():
+        return [b - a for a, b in zip(times, times[1:])]
+
+    for let_go in ('Shift', 'everything'):
+        G['_speed'] = 0.0
+        player.update(x=0.0, y=0.0, yaw=0.0)
+        keys.on_key_press(key.W, 0)
+        keys.on_key_press(key.LSHIFT, 0)
+        drive(3)                                  # up to full speed
+        times.clear()
+        drive(1)
+        running_gap = min(gaps())
+        times.clear()
+        keys.on_key_release(key.LSHIFT, 0)
+        if let_go == 'everything':
+            keys.on_key_release(key.W, 0)
+        drive(3)
+        keys.on_key_release(key.W, 0)
+        braking_gap = min(gaps()) if len(times) > 1 else running_gap
+        # One frame's slack: a step lands on the frame that crosses the stride.
+        check(f'letting go of {let_go} at 12 m/s: steps never quicker than the run '
+              f'(closest {braking_gap * 1000:.0f} ms apart, running {running_gap * 1000:.0f} ms)',
+              braking_gap >= running_gap - 1 / 60)
+    G['fire_footstep'] = lambda *a, **k: steps.append(1)
+
     check('Shift on its own does nothing the game has to handle',
           G['on_key_press'](key.LSHIFT, 0) is None)
 
