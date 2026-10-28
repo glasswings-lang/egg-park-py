@@ -141,7 +141,23 @@ check('tab-indented too', parse() == {} and problems == [])
 write(f'    footstep = {real}\n')
 parse()
 check('an indented line that would have worked is reported, not swallowed',
-      len(problems) == 1 and 'space' in problems[0][1])
+      len(problems) == 1 and 'indented' in problems[0][1])
+
+# Every fill-in line is written "# cue = ", so deleting the # as the file
+# says leaves ONE space in front. That is a real line, not an example: a
+# footstep filled in exactly this way was ignored on 28 Oct 2026.
+write(f'Footstep - Your own feet.\n# footstep = \n'.replace('# footstep = ',
+                                                            f' footstep = {real}'))
+check('a line with the # deleted and its space left in is used',
+      parse() == {'footstep': [real]} and problems == [])
+
+write(f'   footstep = {real}\n')
+check('up to three spaces is still a real line', parse() == {'footstep': [real]})
+
+write(' footstep = nope-not-here.wav\n')
+parse()
+check('and is checked like one: a missing file is reported',
+      len(problems) == 1 and 'not there' in problems[0][1])
 
 write('This sentence explains something and is ignored.\n'
       f'footstep = {real}\n')
