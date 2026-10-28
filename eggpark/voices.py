@@ -91,6 +91,14 @@ CATEGORY_LIMIT = {
     'footstep': 3,
 }
 
+# Kinds that are a RHYTHM, where the newest matters and the oldest is only a
+# tail: at the limit, the new one cuts off the oldest of its kind instead of
+# being dropped. Dropping is right for eggs landing at once, and wrong for
+# steps. 28 Oct 2026: a 0.69 s footstep recording at a run speed of 12 m/s, a
+# step every 0.15 s, lost every other step once three were sounding, so the
+# steps came at irregular intervals instead of with the stride.
+REPLACE_OLDEST = {'footstep'}
+
 _al = None
 _context = None
 _ready = False
@@ -299,17 +307,27 @@ def play(source, *, position, volume, pitch, min_distance, max_distance,
 
     _reclaim_finished()
 
+    voice = None
     limit = CATEGORY_LIMIT.get(category)
     if limit is not None and _count_category(category) >= limit:
-        _note_drop(category or 'sound')
-        return False
+        if category not in REPLACE_OLDEST:
+            _note_drop(category or 'sound')
+            return False
+        # _live is oldest first, so the first of this kind is the oldest.
+        voice = next(v for v in _live if v.category == category)
+        _al.alSourceStop(voice.source_id)
+        _live.remove(voice)
+        voice.category = None
 
     buf = buffer_for(source)
     if buf is None:
+        if voice is not None:
+            _free.append(voice)
         _note_drop(category or 'sound')
         return False
 
-    voice = _free.pop() if _free else _steal_for(importance, distance)
+    if voice is None:
+        voice = _free.pop() if _free else _steal_for(importance, distance)
     if voice is None:
         _note_drop(category or 'sound')
         return False

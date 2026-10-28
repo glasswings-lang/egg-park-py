@@ -181,12 +181,30 @@ def main():
     # richness: your own footsteps on top of each other.
     clear()
     step = tone(0.15, 200)
-    for _ in range(10):
-        fire(step, 'footstep', at_listener=True)
-    steps = sum(1 for v in voices._live if v.category == 'footstep')
-    check(f'ten footsteps at once become {steps}, the allowance being '
+    played = [fire(step, 'footstep', at_listener=True) for _ in range(10)]
+    steps = [v for v in voices._live if v.category == 'footstep']
+    check(f'ten footsteps at once become {len(steps)}, the allowance being '
           f'{voices.CATEGORY_LIMIT["footstep"]}',
-          steps == voices.CATEGORY_LIMIT['footstep'])
+          len(steps) == voices.CATEGORY_LIMIT['footstep'])
+    # ...but a step is never dropped for it: a recording longer than a stride
+    # used to lose every other step at a run, so the rhythm went irregular.
+    # Each new step cuts off the oldest one still sounding instead.
+    check('every one of the ten steps started, on time', all(played))
+    check('no step was let go', 'footstep' not in voices.dropped)
+    newest = sorted(v.serial for v in voices._live)[-len(steps):]
+    check('the steps still sounding are the newest three',
+          sorted(v.serial for v in steps) == newest)
+
+    # Eggs landing in the same instant are not a rhythm: past their allowance
+    # the new ones are still let go, not swapped in.
+    clear()
+    laid = tone(0.4, 880)
+    for _ in range(10):
+        fire(laid, 'egg-laid')
+    eggs_live = sum(1 for v in voices._live if v.category == 'egg-laid')
+    check(f'ten eggs laid at once: {eggs_live} play, the rest let go',
+          eggs_live == voices.CATEGORY_LIMIT['egg-laid']
+          and voices.dropped.get('egg-laid') == 10 - eggs_live)
 
     # ── when the pool is full, what wins ─────────────────────────────────────
     clear()
