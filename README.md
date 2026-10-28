@@ -34,11 +34,15 @@ it changes as you move. Go play it.
 ## Setup
 
 ```
-pip install pyglet accessible_output2 PyOpenAL
+pip install pyglet accessible_output2
 ```
 
-The OpenAL Soft DLL is checked in as `openal32.dll` in this folder so
-pyglet finds it. (Copied from PyOpenAL's bundled `soft_oal_64.dll`.)
+OpenAL Soft 1.25.1 is checked in as `openal32.dll` in this folder so
+pyglet finds it. The HRTF, SADIE II subject D1, is `hrtf/SADIE_D1-48000.mhr`,
+and `alsoft.conf` selects it. `main.py` points OpenAL Soft at that file
+through `ALSOFT_CONF`, which is read after your own `%AppData%\alsoft.ini`,
+so the game's HRTF wins over one set there for something else. Set
+`ALSOFT_CONF` yourself and yours wins instead. See `THIRD-PARTY.md`.
 
 ## Running
 
@@ -336,6 +340,8 @@ egg-park-py/
 │   └── saving.py      #   saving and loading the park
 ├── tests/             # see Tests above
 ├── openal32.dll       # OpenAL Soft (HRTF backend for pyglet)
+├── alsoft.conf        # OpenAL Soft settings: picks the HRTF below
+├── hrtf/              # SADIE_D1-48000.mhr, the HRTF the game uses
 ├── docs/
 │   └── SOUNDS.md      # sound design specs / recording plan
 ├── public/
