@@ -12,7 +12,8 @@ import types
 
 MAIN = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                     'eggpark', 'sounds.py')
-WANT = ('_parse_sounds_list', 'write_sounds_template', 'sound_list_problem_for')
+WANT = ('_parse_sounds_list', 'write_sounds_template', 'sound_list_problem_for',
+        '_cue_entries', '_add_missing_cues', '_write_sounds_list')
 
 src = open(MAIN, encoding='utf-8').read()
 tree = ast.parse(src)
@@ -77,6 +78,27 @@ check('the explaining is NOT hash-prefixed',
 check('parses to nothing while untouched', parse() == {})
 check('and reports no problems', problems == [])
 check('force rewrites', template(force=True) is True)
+
+print()
+print('a file made before a sound existed:')
+old = ('My notes up here.\r\n\r\nEgg call - An egg calling.\r\n'
+       f'egg-call = {real}\r\n\r\nFootstep - Your own feet.\r\n# footstep = \r\n')
+with open(PATH, 'wb') as f:
+    f.write(old.encode('utf-8'))
+check('an existing file is still not replaced', template() is False)
+grown = open(PATH, 'rb').read().decode('utf-8')
+check('what was there is kept exactly', grown.startswith(old))
+added = grown[len(old):]
+check('the missing sound is added at the end, switched off',
+      '# refuse = ' in added and 'Hands full - You cannot carry that.' in added)
+check('and the background sound', '# ambience = ' in added)
+check('nothing that was already there is added again',
+      'egg-call =' not in added and 'footstep =' not in added)
+check('in the file\'s own line endings', '\r\n' in added and '\n' not in added.replace('\r\n', ''))
+template()
+check('a second start adds nothing', open(PATH, 'rb').read().decode('utf-8') == grown)
+check('and the filled-in line still works', parse().get('egg-call') == [real])
+template(force=True)
 
 print()
 print('parsing:')

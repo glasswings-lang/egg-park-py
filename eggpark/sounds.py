@@ -681,7 +681,10 @@ def has_recording(category):
 # commented out, so the names never have to be memorised or typed from
 # scratch — uncomment a line and put a path after the equals sign.
 
-SOUNDS_LIST_FILE = os.path.join(config._script_dir, 'sounds.txt')
+# Tests set EGG_PARK_SOUNDS, so starting the game for a test never adds to
+# someone's own sounds.txt.
+SOUNDS_LIST_FILE = (os.environ.get('EGG_PARK_SOUNDS')
+                    or os.path.join(config._script_dir, 'sounds.txt'))
 
 # (line number, what went wrong) for anything sounds.txt asked for and didn't
 # get. Kept rather than printed: this runs under pythonw with no console, and
@@ -765,8 +768,11 @@ def write_sounds_template(force=False):
     Generated rather than shipped so it can never drift from the actual cue
     list, and so the names never have to be typed from memory. Won't
     overwrite an existing file unless asked — this is someone's config.
+    An existing one has any sound added since it was written put on the end
+    instead, so a new cue can always be found there (see _add_missing_cues).
     """
     if os.path.isfile(SOUNDS_LIST_FILE) and not force:
+        _add_missing_cues()
         return False
     lines = [
         'EGG PARK - USING YOUR OWN SOUNDS',
@@ -850,10 +856,54 @@ def write_sounds_template(force=False):
     body.append('# ambience = ')
     body.append('')
     text = '\n'.join(lines) + '\n' + '\n'.join(body) + '\n'
+    # Written as text always was: Windows line endings on Windows.
+    return _write_sounds_list(text.replace('\n', os.linesep).encode('utf-8'))
+
+
+# A sounds.txt is written once and then belongs to whoever filled it in, so
+# it never learned about a sound added afterwards: 28 Oct 2026, a file from
+# September had no line for the wind or for pouring, and nothing said so.
+# Now any cue it doesn't mention, switched on or off, is added at the end
+# with what it means. Nothing already in the file is touched or reordered.
+def _cue_entries():
+    for category, label, meaning, _getter in SOUND_CATALOGUE:
+        yield category, f'{label} - {meaning}'
+    yield 'ambience', ('Background sound - Plays quietly under everything, all '
+                       'the time. Not a cue, so it is not in the Sound test.')
+
+
+def _add_missing_cues():
+    try:
+        with open(SOUNDS_LIST_FILE, 'rb') as f:
+            raw = f.read()
+    except Exception as exc:
+        _sound_list_problems.append((0, f'could not open sounds.txt: {exc}'))
+        return False
+    text = raw.decode('utf-8', errors='replace')
+    named = set()
+    for line in text.splitlines():
+        line = line.strip().lstrip('#').strip()
+        if '=' in line:
+            named.add(line.split('=', 1)[0].strip().lower()
+                      .replace(' ', '-').replace('_', '-'))
+    missing = [(c, d) for c, d in _cue_entries() if c not in named]
+    if not missing:
+        return False
+    nl = '\r\n' if b'\r\n' in raw else '\n'
+    add = ['', '', 'ADDED SINCE THIS FILE WAS MADE', '',
+           'The game has gained these sounds since this file was written. They',
+           'work just like the ones above.', '']
+    for category, description in missing:
+        add += [description, f'# {category} = ', '']
+    tail = raw if raw.endswith(nl.encode()) or not raw else raw + nl.encode()
+    return _write_sounds_list(tail + nl.join(add).encode('utf-8') + nl.encode())
+
+
+def _write_sounds_list(data):
     try:
         tmp = SOUNDS_LIST_FILE + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as f:
-            f.write(text)
+        with open(tmp, 'wb') as f:
+            f.write(data)
         os.replace(tmp, SOUNDS_LIST_FILE)
         return True
     except Exception as exc:

@@ -46,9 +46,13 @@ TEST_DIR = (os.environ.get('EGG_PARK_TEST_DIR')
 PLAY_LOG = os.path.join(TEST_DIR, 'play-log.txt')
 PARK_SAVE = os.path.join(TEST_DIR, 'park.json')
 CRASH_LOG = os.path.join(TEST_DIR, 'crash-log.txt')
+SOUNDS_LIST = os.path.join(TEST_DIR, 'sounds.txt')
 os.environ['EGG_PARK_PLAY_LOG'] = PLAY_LOG
 os.environ['EGG_PARK_SAVE'] = PARK_SAVE
 os.environ['EGG_PARK_CRASH_LOG'] = CRASH_LOG
+# Booting the game writes sounds.txt, or adds new sounds to the end of one
+# that exists: that must happen to a scratch copy, never to someone's own.
+os.environ['EGG_PARK_SOUNDS'] = SOUNDS_LIST
 import pyglet                                  # noqa: E402
 
 pyglet.options['audio'] = ('silent',)
