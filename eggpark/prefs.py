@@ -24,7 +24,11 @@ from eggpark import config, menu, sounds, speech
 #   'bool'  — on/off; Left = off, Right = on, Space/Enter toggles.
 # ============================================================================
 
-SETTINGS_FILE = os.path.join(config._script_dir, 'settings.json')
+# Tests set EGG_PARK_SETTINGS, so they start from the defaults rather than from
+# whatever someone set for their own play: a run speed of 12 made a footstep
+# test fail on 28 Oct 2026 with nothing wrong in the game.
+SETTINGS_FILE = (os.environ.get('EGG_PARK_SETTINGS')
+                 or os.path.join(config._script_dir, 'settings.json'))
 
 _pct = lambda v: f'{int(round(v * 100))} percent'
 

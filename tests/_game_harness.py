@@ -47,13 +47,17 @@ PLAY_LOG = os.path.join(TEST_DIR, 'play-log.txt')
 PARK_SAVE = os.path.join(TEST_DIR, 'park.json')
 CRASH_LOG = os.path.join(TEST_DIR, 'crash-log.txt')
 SOUNDS_LIST = os.path.join(TEST_DIR, 'sounds.txt')
+SETTINGS = os.path.join(TEST_DIR, 'settings.json')
 os.environ['EGG_PARK_PLAY_LOG'] = PLAY_LOG
 os.environ['EGG_PARK_SAVE'] = PARK_SAVE
 os.environ['EGG_PARK_CRASH_LOG'] = CRASH_LOG
 # Booting the game writes sounds.txt, or adds new sounds to the end of one
 # that exists: that must happen to a scratch copy, never to someone's own.
 os.environ['EGG_PARK_SOUNDS'] = SOUNDS_LIST
-import pyglet                                  # noqa: E402
+# Settings start from the defaults, never from someone's own settings.json,
+# and a test that nudges a slider saves to the scratch copy.
+os.environ['EGG_PARK_SETTINGS'] = SETTINGS
+import pyglet                                 # noqa: E402
 
 pyglet.options['audio'] = ('silent',)
 
@@ -119,10 +123,6 @@ def run_game(checks):
 
     def fake_run(*a, **k):
         G = Game(main_globals)
-        # Changing a setting saves it. Settings were already loaded from the
-        # real file at boot; from here on, saves go to the scratch folder so a
-        # test that nudges a slider can't rewrite someone's settings.json.
-        G['SETTINGS_FILE'] = os.path.join(TEST_DIR, 'settings.json')
         try:
             checks(G)
         finally:
