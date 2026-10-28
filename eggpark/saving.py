@@ -2,6 +2,7 @@
 """Saving and loading the park."""
 import json
 import os
+import threading
 import time
 
 import pyglet
@@ -49,7 +50,11 @@ def _park_to_dict():
         'held': [dict(h) for h in state.held],
         'eggs': [dict(e) for e in state.eggs],
         'baskets': [dict(b, eggs=[dict(e) for e in b['eggs']]) for b in state.baskets],
-        'chests': [dict(c, eggs=[dict(e) for e in c['eggs']]) for c in state.chests],
+        # gifts copied too: an autosave is written on another thread, so
+        # nothing it holds may be a list the game is still changing.
+        'chests': [dict(c, eggs=[dict(e) for e in c['eggs']],
+                        **({'gifts': list(c['gifts'])} if 'gifts' in c else {}))
+                   for c in state.chests],
         'progress': dict(state.progress),
         'birds': [dict(bird,
                        next_call_at=bird['next_call_at'] - t,
@@ -58,18 +63,80 @@ def _park_to_dict():
     }
 
 
+# THE AUTOSAVE FROZE THE GAME. 28 Oct 2026: a park of half a million eggs
+# took 3.4 seconds to write with indent=1 (pure-Python encoder), and the whole
+# game stopped while it did, every 30 seconds. That was the stutter, and the
+# lurch after it walked you straight past baskets. Now the save is compact
+# (the fast encoder, 0.9 s for the same park), and an autosave copies the park
+# on this thread (about 0.1 s) and writes it on another, a slice at a time so
+# the game keeps getting its turn. Menu and quit saves still wait for it.
+# Each slice is one call into the C encoder, which holds the interpreter until
+# it is done, so the game cannot run during it. At 2000 eggs a slice that was
+# 5 ms, and frames during a save went to 50-60 ms. At 300 it is under 1 ms,
+# and the writer sleeps between slices so the game always gets the next turn.
+SAVE_SLICE = 300    # eggs/birds encoded per slice by the background writer
+SAVE_YIELD = 0.001  # seconds the background writer steps aside between slices
+
+_save_thread = None
+
+
+def _write_park(data, path, pause=0.0):
+    """Compact JSON, long lists written a slice at a time. Each slice is one
+    quick call to the fast encoder, so a writer on another thread lets go
+    between slices (sleeping `pause`) and the game never waits on the whole
+    park at once."""
+    tmp = path + '.tmp'
+    enc = json.JSONEncoder(separators=(',', ':')).encode
+    with open(tmp, 'w', encoding='utf-8') as f:
+        f.write('{')
+        for i, (k, v) in enumerate(data.items()):
+            f.write((',' if i else '') + enc(k) + ':')
+            if isinstance(v, list) and len(v) > SAVE_SLICE:
+                f.write('[')
+                for start in range(0, len(v), SAVE_SLICE):
+                    chunk = enc(v[start:start + SAVE_SLICE])[1:-1]
+                    f.write((',' if start else '') + chunk)
+                    if pause:
+                        time.sleep(pause)
+                f.write(']')
+            else:
+                f.write(enc(v))
+        f.write('}')
+    os.replace(tmp, path)
+
+
+def _write_in_background(data, reason):
+    try:
+        started = time.perf_counter()
+        _write_park(data, PARK_SAVE_FILE, pause=SAVE_YIELD)
+        speech.log_event(f'park written ({reason}) in {time.perf_counter() - started:.1f}s')
+    except Exception as exc:
+        speech.log_event(f'COULD NOT SAVE PARK ({reason}): {exc}')
+        print(f'[park] could not save: {exc}')
+
+
+def wait_for_save():
+    if _save_thread is not None:
+        _save_thread.join()
+
+
 def save_park(reason):
     """Write the park to disk. Never raises: failing to save must not end a
     session, but it must not be silent either."""
-    global _next_autosave_at
+    global _next_autosave_at, _save_thread
     _next_autosave_at = game.now() + PARK_AUTOSAVE_INTERVAL
+    if reason == 'autosave' and _save_thread is not None and _save_thread.is_alive():
+        return   # the last one is still writing; the next autosave catches up
     try:
-        tmp = PARK_SAVE_FILE + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(_park_to_dict(), f, indent=1)
-        os.replace(tmp, PARK_SAVE_FILE)
-        if reason != 'autosave':
-            world.log_counts(f'park saved ({reason})')
+        data = _park_to_dict()
+        if reason == 'autosave':
+            _save_thread = threading.Thread(
+                target=_write_in_background, args=(data, reason), daemon=True)
+            _save_thread.start()
+            return
+        wait_for_save()
+        _write_park(data, PARK_SAVE_FILE)
+        world.log_counts(f'park saved ({reason})')
     except Exception as exc:
         speech.log_event(f'COULD NOT SAVE PARK ({reason}): {exc}')
         print(f'[park] could not save: {exc}')

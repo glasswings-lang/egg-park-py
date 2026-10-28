@@ -15,6 +15,7 @@ to turn the D-pad into questions rather than actions.
   Left stick    walk. Any direction, and how far you push is how fast you go.
   Click it      run, as a toggle. Stays on until you click again.
   Right stick   turn, left and right. A nudge is a nudge.
+  Click it      lead me home, to where the park began (Shift+H)
   Right trigger hold to run, for as long as you hold it. The same as Shift.
   A             scan (Space)
   B             deposit (F)
@@ -420,6 +421,8 @@ def _on_button(controller, name):
         world.try_deposit()
     elif name == 'x':
         game.announce_status()
+    elif name == 'rightstick':
+        scan.try_guide_home()
     elif name == 'start':
         menu.open_main_menu()
     elif name == 'back':
@@ -445,6 +448,7 @@ PAD_HELP = (
     'Hold Y and press the D-pad to ask instead: up for your heading, '
     'down for what you are carrying, left for what is in the park, '
     'right for everything. '
+    'Click the right stick to be led home, to where the park began. '
     'The bumpers lower and raise the volume. '
     'Start opens the menu, and Back opens settings. '
     'In a menu, the stick or D-pad moves, A picks, and B goes back.'

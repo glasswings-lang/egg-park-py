@@ -132,6 +132,25 @@ def try_scan_unfound_baskets():
     speech.say(f'Unfound basket, {int(round(best_d))} metres.')
 
 
+HOME = {'x': 0.0, 'y': 0.0}   # where every park starts; the origin chime's spot
+HOME_ARRIVED = 3.0            # metres: close enough to call it home
+
+
+def try_guide_home():
+    """Shift+H, or click the right stick. Lead back to where the park began.
+    The origin chime says which way home is, but from 400 m out in a busy
+    park it can't be picked out, and there was no other way back to the
+    start (28 Oct 2026). No range limit, unlike the scans."""
+    sounds.fire_scan_start()
+    d = math.hypot(state.player['x'], state.player['y'])
+    if d <= HOME_ARRIVED:
+        stop_scan_guide()
+        speech.say('You are home.')
+        return
+    start_scan_guide('home', HOME)
+    speech.say(f'Leading you home, {int(round(d))} metres.')
+
+
 # ============================================================================
 # Scan guide
 # ============================================================================
@@ -190,6 +209,11 @@ def _scan_guide_still_wanted(g, dist):
         # Chosen from the chest list (eggpark/chestlist.py): full or not, near
         # or far, you asked for this one, so it leads until you're on it.
         return g['target'] in state.chests and dist > config.CHEST_DEPOSIT_RADIUS
+    if g['kind'] == 'home':
+        if dist <= HOME_ARRIVED:
+            speech.say('You are home.')
+            return False
+        return True
     if dist > GUIDE_GIVE_UP:
         return False
     if g['kind'] == 'egg':

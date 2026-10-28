@@ -280,14 +280,19 @@ class EggField(list):
                             return True
         return False
 
-    def nearest(self, x, y, max_radius):
+    def nearest(self, x, y, max_radius, give_up_within=0.0):
         """The closest egg within `max_radius`, or None.
 
         Searches outwards a ring of cells at a time, and rules a cell out by how
         close anything in it could possibly be. In a crowded park the first cell
         hands back an egg a few centimetres away and every neighbour is then
         dismissed without a single egg in it being looked at.
+
+        `give_up_within`: the moment an egg that close turns up, return it
+        rather than keep looking for a closer one. For a caller that only needs
+        to know the gap is no bigger than that.
         """
+        give_up2 = give_up_within * give_up_within
         if not self._cells or max_radius <= 0:
             return None
         cx, cy = math.floor(x / CELL), math.floor(y / CELL)
@@ -295,6 +300,11 @@ class EggField(list):
         cells = self._cells
         best = None
         best_d = float('inf')
+        # Squared distances inside the loop: in the crowded corner one call
+        # measures about a thousand eggs, and a square root for each of them
+        # was most of what laying a clutch cost.
+        best_d2 = float('inf')
+        limit2 = max_radius * max_radius
         for ring in range(rings + 1):
             if ring > 1 and (ring - 1) * CELL > best_d:
                 break
@@ -310,9 +320,14 @@ class EggField(list):
                     if math.hypot(gap_x, gap_y) >= min(best_d, max_radius):
                         continue
                     for egg in bucket.values():
-                        d = math.hypot(egg['x'] - x, egg['y'] - y)
-                        if d < best_d and d <= max_radius:
-                            best, best_d = egg, d
+                        dx = egg['x'] - x
+                        dy = egg['y'] - y
+                        d2 = dx * dx + dy * dy
+                        if d2 < best_d2 and d2 <= limit2:
+                            best, best_d2 = egg, d2
+                            if d2 <= give_up2:
+                                return best
+                    best_d = math.sqrt(best_d2)
         return best
 
     # ── the one job that has to touch everything ───────────────────────────

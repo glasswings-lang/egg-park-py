@@ -163,7 +163,7 @@ def _crowded_within(x, y, separation):
     return state.eggs.any_within(x, y, separation)
 
 
-def _gap_to_nearest(x, y, separation):
+def _gap_to_nearest(x, y, separation, give_up_within=0.0):
     """Exactly how far the nearest egg is, for choosing between cramped spots.
 
     A stopped-early answer is no good here: it is just the first neighbour that
@@ -171,8 +171,12 @@ def _gap_to_nearest(x, y, separation):
     -- measured over 40 clutches, the gap between neighbouring eggs halved, from
     a median of 3.6 m to 1.4 m, and it was reported from play as everything
     being clustered together.
+
+    The one early stop that is safe: `give_up_within`, the roomiest gap found
+    so far. An egg closer than that means this spot loses whatever the exact
+    answer is, so the search can end there and say so.
     """
-    found = state.eggs.nearest(x, y, separation)
+    found = state.eggs.nearest(x, y, separation, give_up_within)
     if found is None:
         return float('inf')
     return math.hypot(found['x'] - x, found['y'] - y)
@@ -284,8 +288,14 @@ def _place_egg(anchors, dist_min, dist_max, separation, grid=None):
     else:
         _failures_in_a_row += 1
     if best is None and tried:
+        # The roomiest, exactly, but only measured where it could matter: a
+        # spot with any egg closer than the roomiest so far can't win, and
+        # any_within says so at the first egg it meets. 28 Oct 2026, a real
+        # park of half a million: every candidate measured in full was 28,000
+        # distances a frame, most of them deciding nothing.
         for x, y in tried[:candidates]:
-            gap = _gap_to_nearest(x, y, separation)   # exact
+            gap = _gap_to_nearest(x, y, separation,   # exact, unless it loses
+                                  give_up_within=best_gap if best else 0.0)
             if gap > best_gap:
                 best, best_gap = (x, y), gap
     if best is None:

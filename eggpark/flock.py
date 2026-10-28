@@ -156,9 +156,24 @@ def tick_hatching(dt):
                         he['next_warning'] = config.WARNING_INTERVAL
 
 
+# Birds are moved a third of the flock a frame, each with three frames' worth
+# of time. 28 Oct 2026: 1,505 birds every frame was 4 ms of the 16 a frame
+# has. A bird's position only matters when it calls or rustles, and three
+# frames is a twentieth of a second, so nothing you can hear changes.
+BIRD_TICK_SLICES = 3
+_bird_slice = 0
+
+
 def tick_birds(dt):
+    global _bird_slice
+    if dt > config.MAX_MOVE_DT or len(state.birds) < 100:
+        flock = state.birds            # a stall, or a small flock: everyone
+    else:
+        _bird_slice = (_bird_slice + 1) % BIRD_TICK_SLICES
+        flock = state.birds[_bird_slice::BIRD_TICK_SLICES]
+        dt *= BIRD_TICK_SLICES
     now_t = time.monotonic()
-    for bird in state.birds:
+    for bird in flock:
         # Flights: every so often a bird takes off and crosses its range in a
         # straight line, then goes back to wandering. This is what makes a
         # flock sound alive — something passing you is far more legible than

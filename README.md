@@ -152,6 +152,7 @@ walks you slowly up to an egg.
 | **D-pad right / left** | Lead to a found / unfound chest |
 | **Left trigger** | The chest list: every chest you've found, nearest first, and what its birds get. D-pad up and down choose, A leads you there, B closes. The park keeps running |
 | **Hold Y + D-pad** | Ask: heading / carrying / the park / everything |
+| **Right stick, clicked** | Lead home, to where the park began |
 | **Bumpers** | Volume down / up |
 | **Start / Back** | Main menu / settings |
 
@@ -251,6 +252,7 @@ still deciding what you want to do.
 | **G**               | Chest list: Up / Down choose, Enter leads, Esc closes |
 | **F**               | Deposit held eggs at the basket you're on        |
 | **P**               | Speak status (heading, distances, counts, caps)  |
+| **Shift+H**         | Guide home, to where the park began              |
 | **R**               | Reload sample bank (re-scan samples folder)      |
 | **[** / **]**       | Master volume down / up (10% steps, 0–200%)      |
 | **O**               | Open settings screen (pauses the world)          |

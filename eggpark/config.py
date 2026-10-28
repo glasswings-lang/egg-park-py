@@ -255,6 +255,10 @@ STEP_DISTANCE = 1.0
 ACCELERATION = 8.0
 BRAKING = 14.0
 
+# The most of one frame's time that moving may use. A stall hands the next
+# frame the whole stall as dt; uncapped, that was a teleport. See game.update.
+MAX_MOVE_DT = 0.1
+
 # Wind. A speed cue, since footstep cadence alone could not carry it. Loudest
 # at the run speed, silent at a standstill, and low-passed like everything
 # else in this game that is made of noise — between the ambience bed (200 Hz)

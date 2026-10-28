@@ -55,8 +55,11 @@ def session(name):
             before = os.path.getmtime(save)
             G['_next_autosave_at'] = 0.0
             G['update'](1 / 60)
+            G['wait_for_save']()                      # autosaves write on another thread
+            with open(save) as f:
+                autosaved = json.load(f)
             check('autosave writes while playing', os.path.getmtime(save) >= before
-                  and json.load(open(save))['player']['x'] == 7.25)
+                  and autosaved['player']['x'] == 7.25)
             G['open_main_menu']()
             p.update(x=8.0)                           # moved after the menu save...
             G['pyglet'].app.exit = lambda: None

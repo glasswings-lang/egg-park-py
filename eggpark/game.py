@@ -37,7 +37,8 @@ CONTROL_HELP = (
            'Shift C to the nearest chest you have not found. '
            'G lists every chest you have found and what its birds get: '
            'up and down arrows choose, Enter leads you there, Escape or G closes it. '
-           'F deposits at a basket. P speaks your status.'),
+           'F deposits at a basket. P speaks your status. '
+           'Shift H leads you home, to where the park began.'),
     ('Set up', 'O opens settings. Left and right square brackets '
                'lower and raise the volume. R reloads the sample bank.'),
     ('Leave', 'Escape goes back to the main menu, where Quit lives. '
@@ -153,6 +154,8 @@ def on_key_press(symbol, modifiers):
         # Back to the menu, not out of the game. Quitting outright on Escape
         # is a hard thing to undo by accident with no visible confirmation.
         menu.open_main_menu()
+    elif symbol == key.H and modifiers & key.MOD_SHIFT:
+        scan.try_guide_home()
     elif symbol == key.H or symbol == key.SLASH:
         speak_controls()
     elif symbol == key.P:
@@ -286,6 +289,14 @@ def _update(dt):
     pad_forward, pad_right, pad_turn, pad_running = pad.read()
     pad.tick_left_trigger()
 
+    # After a stall the next frame's dt is the whole stall: a 3.4 s freeze at
+    # a run moved you 17 m in one step, clean over a 2 m basket you had just
+    # heard underfoot, and F then said "not standing on a basket". Moving,
+    # turning and footsteps take at most MAX_MOVE_DT of it; the world's own
+    # timers still get the real dt.
+    world_dt = dt
+    dt = min(dt, config.MAX_MOVE_DT)
+
     # Turn. Keys are all-or-nothing, the stick is proportional, and they add:
     # holding Q with the stick half over is still just a left turn.
     turn_speed = prefs.settings['turn_speed']
@@ -374,9 +385,9 @@ def _update(dt):
     chests.maybe_spawn_chest()
 
     # Hatching timers.
-    flock.tick_hatching(dt)
-    flock.tick_birds(dt)
-    flock.tick_laying(dt)
+    flock.tick_hatching(world_dt)
+    flock.tick_birds(world_dt)
+    flock.tick_laying(world_dt)
     world.watch_counts()
     saving.tick_autosave()
 
