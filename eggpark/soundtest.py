@@ -32,6 +32,7 @@ def open_sound_test():
 def close_sound_test():
     global _in_sound_test
     _in_sound_test = False
+    sounds.stop_preview()
     sounds.fire_menu_close()
     menu.open_main_menu(announce='Sound test closed.')
 
@@ -62,6 +63,9 @@ def _speak_sound_test_item():
 
 def sound_test_focus_move(direction):
     global _sound_test_focus
+    # Moving on stops what was playing: the wind, say, would otherwise go on
+    # under the next few sounds you are trying to hear.
+    sounds.stop_preview()
     _sound_test_focus = (_sound_test_focus + direction) % len(sounds.SOUND_CATALOGUE)
     _speak_sound_test_item()
 
@@ -76,10 +80,11 @@ def sound_test_play():
     """
     category, _label, _meaning, getter = _sound_test_entry()
     if category == 'egg-warning':
+        sounds.stop_preview()
         sounds.fire_egg_warning()      # both tones, exactly as the game fires it
         return
-    sounds._play(sounds.pick_source(category, fallback=getter()), volume=0.5,
-          category=category)
+    sounds.play_preview(sounds.pick_source(category, fallback=getter()), volume=0.5,
+                        category=category)
 
 
 def sound_test_explain():
@@ -114,7 +119,9 @@ def _done_choosing(_dt=None):
 
 
 def _preview(category, path):
-    """Alt+P in the file dialog: play the selected file as this sound would."""
+    """Alt+P in the file dialog: play the selected file as this sound would.
+    One at a time: pressing it again starts over rather than playing twice."""
+    sounds.stop_preview()
     if path is None:
         speech.say('Nothing to play. Select a sound file in the list first.')
         return
@@ -123,7 +130,7 @@ def _preview(category, path):
     except Exception:
         speech.say('That file could not be played. It may not be a sound, or be damaged.')
         return
-    sounds._play(source, volume=0.5, category=category)
+    sounds.play_preview(source, volume=0.5, category=category)
 
 
 def choose_recording():
@@ -151,6 +158,7 @@ def choose_recording():
         speech.say(f'The file dialog could not open. {exc}')
         path = None
     finally:
+        sounds.stop_preview()          # a preview does not outlive the dialog
         pyglet.clock.schedule_once(_done_choosing, 0.5)
     if not path:
         speech.say(f'Cancelled. {label} is unchanged.')

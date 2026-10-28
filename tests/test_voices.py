@@ -195,6 +195,22 @@ def main():
     check('the steps still sounding are the newest three',
           sorted(v.serial for v in steps) == newest)
 
+    # One sound stopped by its handle: how the sound test and the file
+    # dialog's Preview stop the last preview before the next.
+    clear()
+    long_one = tone(2.0, 300)
+    fire(long_one, 'wind', at_listener=True)
+    wind = voices.last_serial()
+    fire(long_one, 'bird-call')
+    voices.stop(wind)
+    kinds = sorted(v.category for v in voices._live)
+    check(f'stop() ends that one sound and nothing else ({kinds})', kinds == ['bird-call'])
+    voices.stop(wind)
+    fire(long_one, 'wind', at_listener=True)       # may well reuse the same voice
+    voices.stop(wind)
+    check('a stale handle never stops whatever took its voice since',
+          sorted(v.category for v in voices._live) == ['bird-call', 'wind'])
+
     # Eggs landing in the same instant are not a rhythm: past their allowance
     # the new ones are still let go, not swapped in.
     clear()

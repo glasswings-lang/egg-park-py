@@ -153,10 +153,24 @@ def run_checks(G):
     def press_open(dlg):
         user32.PostMessageW(dlg, WM_COMMAND, IDOK, 0)
 
-    titles = drive(G, [type_path, press_preview, press_open])
+    def playing(category):
+        # Under the harness sounds go the player-per-sound way (silent driver).
+        return sum(1 for p in G['_active_players']
+                   if getattr(p, '_eggpark_category', None) == category)
+
+    during = []
+
+    def count_footsteps(dlg):
+        during.append(playing('footstep'))
+
+    titles = drive(G, [type_path, press_preview, press_preview, count_footsteps, press_open])
     check(f'F1 opens the dialog, titled {titles[0] if titles else None!r}',
           titles == [filepick.TITLE])
-    check(f'Preview played the file as a footstep ({played})', played == ['footstep'])
+    check(f'Preview played the file as a footstep ({played})',
+          played == ['footstep', 'footstep'])
+    check(f'Preview pressed twice: one playing, not two over each other ({during})',
+          during == [1])
+    check('and the preview stops when the dialog closes', playing('footstep') == 0)
     check('the choice is written into sounds.txt',
           f'footstep = {take}' in open(G['SOUNDS_LIST_FILE'], encoding='utf-8').read())
     check('and loaded at once, no R needed',
@@ -181,6 +195,21 @@ def run_checks(G):
           spoken[-1:] == ['Cancelled. Footstep is unchanged.'])
     check('and sounds.txt is untouched',
           open(G['SOUNDS_LIST_FILE'], encoding='utf-8').read() == before)
+
+    print('the sound test plays one sound at a time:')
+    G['_sound_test_focus'] = cues.index('wind')
+    G['on_key_press'](key.RETURN, 0)
+    G['on_key_press'](key.RETURN, 0)
+    check(f'Enter twice on the wind: one wind playing ({playing("wind")})', playing('wind') == 1)
+    G['on_key_press'](key.DOWN, 0)
+    check('Down stops it, so it does not run on under the next sound', playing('wind') == 0)
+    G['on_key_press'](key.RETURN, 0)
+    G['on_key_press'](key.UP, 0)
+    check('Up does too', playing(cues[cues.index('wind') + 1]) == 0)
+    G['on_key_press'](key.RETURN, 0)
+    G['on_key_press'](key.ESCAPE, 0)
+    check('and so does leaving the sound test', playing('wind') == 0)
+    soundtest.open_sound_test()
 
     print('the one sound that cannot be replaced here:')
     spoken.clear()

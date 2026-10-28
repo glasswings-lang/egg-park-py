@@ -1288,6 +1288,49 @@ def _play(source, *, position=None, volume=1.0, category=None,
         _active_players.discard(p)
         _listener_locked.discard(p)
         speech.log_event(f'COULD NOT PLAY a {category or "sound"}: {exc}')
+        return None
+    return p
+
+
+# ---------------------------------------------------------------------------
+# Previews: one at a time
+# ---------------------------------------------------------------------------
+#
+# The sound test and the file dialog's Preview play sounds to be listened to
+# one by one. Left alone they piled up: the wind, half a minute long, went on
+# under every sound chosen after it, and pressing Preview twice played the
+# file twice over itself. A preview now stops the one before it, and moving
+# on stops it too (stop_preview).
+
+_preview = None      # a voice serial (the pool) or a Player (the old path)
+
+
+def stop_preview():
+    global _preview
+    handle, _preview = _preview, None
+    if handle is None:
+        return
+    if isinstance(handle, int):
+        voices.stop(handle)
+        return
+    try:
+        handle.pause()
+        handle.delete()
+    except Exception:
+        pass
+    _active_players.discard(handle)
+    _listener_locked.discard(handle)
+
+
+def play_preview(source, *, volume, category):
+    """_play, at the listener, after stopping the last preview."""
+    global _preview
+    stop_preview()
+    played = _play(source, volume=volume, category=category)
+    if played is True:
+        _preview = voices.last_serial()
+    elif played:
+        _preview = played
 
 
 # --- One sound-effect function per "category." Swap each to use samples
