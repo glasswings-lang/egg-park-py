@@ -378,7 +378,18 @@ def _update(dt):
         # rate follows the speed you are actually going, ramp included.
         # Toggle-off still ticks the counter so re-enabling mid-walk doesn't
         # burst.
-        stride = config.RUN_STEP_DISTANCE if running else config.STEP_DISTANCE
+        #
+        # The stride follows the SPEED, not the run key. It used to switch to
+        # the walking stride the instant the key came up, while braking from a
+        # run still had you near full speed: at a run speed of 12 that was 12
+        # steps a second, nearly twice the running rate, until the speed caught
+        # up (28 Oct 2026). Now it lengthens and shortens with how fast you are
+        # actually going, walking stride at walk speed, running stride at run.
+        walk, run = prefs.settings['walk_speed'], prefs.settings['run_speed']
+        stretch = (min(1.0, max(0.0, (_speed - walk) / (run - walk)))
+                   if run > walk else 0.0)
+        stride = (config.STEP_DISTANCE
+                  + stretch * (config.RUN_STEP_DISTANCE - config.STEP_DISTANCE))
         _dist_since_step += _speed * dt
         if _dist_since_step >= stride:
             _dist_since_step -= stride
