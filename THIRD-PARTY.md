@@ -3,9 +3,10 @@
 What Egg Park uses, under what terms, and what that means for anyone
 redistributing it.
 
-Only **one** of these is redistributed inside this repository —
-`openal32.dll`. Everything else is installed separately by `pip` and is
-listed here for completeness, not because this repo carries a copy.
+Two of these are redistributed inside this repository: `openal32.dll`,
+which the game uses, and Mesa under `tests/mesa/`, which only the tests use.
+Everything else is installed separately by `pip` and is listed here for
+completeness, not because this repo carries a copy.
 
 ---
 
@@ -47,6 +48,29 @@ database** and is provided under the **Apache License 2.0** — text in
 This matters more here than in most projects that bundle OpenAL: HRTF isn't
 an optional extra in Egg Park, it's the mechanism the entire game runs on.
 Distributing the DLL distributes that dataset with it.
+
+### Mesa — `tests/mesa/opengl32.dll` and `tests/mesa/libgallium_wgl.dll`
+
+| | |
+| --- | --- |
+| **What** | Software OpenGL (the llvmpipe driver). Lets the tests open the game window on the hidden desktop they run on. |
+| **Version** | **26.2.4**, the 64-bit MSVC build from https://github.com/pal1000/mesa-dist-win (`mesa3d-26.2.4-release-msvc.7z`). Only these two files from it. |
+| **SHA-256** | `opengl32.dll` 75b295fc80df0eaa8f1264c28663f6932c8b72d36513eb092556608858b7f5e0, `libgallium_wgl.dll` 53e49adf87590d5b0cab8553b1e98084812040cc1fca8c487695b17b7af3702e |
+| **Licence** | Mesa's core is **MIT**: text in `LICENSES/MIT-Mesa.txt`, taken from Mesa's own `licenses/MIT`. llvmpipe is built with LLVM linked in, which is **Apache 2.0 with the LLVM exception** (`LICENSES/Apache-2.0.txt`). Individual Mesa source files can carry other permissive licences; the full set is in `licenses/` in the Mesa source. |
+| **Upstream** | https://gitlab.freedesktop.org/mesa/mesa |
+| **Modified?** | **No.** Unmodified binaries from that release. |
+
+**Why it's committed:** the game tests run on a hidden Windows desktop so
+they can't take focus from a screen reader. On the machine this is developed
+on, both GPU drivers (Intel and NVIDIA) refuse to make an OpenGL context
+current on a desktop that isn't the one being used, and Windows' own software
+OpenGL there is version 1.1, too old for pyglet 2. Without this the tests
+could not run at all.
+
+**The game never loads it.** `tests/_isolated_desktop.py` loads it by full
+path, and only in a test process that has already moved onto the hidden
+desktop. Deleting `tests/mesa/` puts the tests back on the GPU driver's
+OpenGL.
 
 ---
 

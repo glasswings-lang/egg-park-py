@@ -47,6 +47,7 @@ import sys
 
 _ISOLATED = False
 _HANDLE = None          # kept alive deliberately; see the docstring
+_MESA_DIR_HANDLE = None # likewise; see _load_software_opengl
 _DETAIL = "not attempted"
 
 
@@ -165,11 +166,42 @@ def enter_isolated_desktop(name="eggpark-tests"):
         _HANDLE = handle
         _ISOLATED = True
         _DETAIL = (f"on desktop {mine!r}; the person is on {theirs or '?'!r} — "
-                   f"windows made here cannot reach their foreground")
+                   f"windows made here cannot reach their foreground; "
+                   f"{_load_software_opengl()}")
         return True
     except Exception as e:                                # pragma: no cover
         _DETAIL = f"{type(e).__name__}: {e}"
         return False
+
+
+MESA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mesa")
+
+
+def _load_software_opengl():
+    """Load Mesa's software OpenGL (llvmpipe) in place of the GPU driver's.
+
+    The desktop is fine but the GPU is not: on this machine both the Intel and
+    the NVIDIA OpenGL drivers create a context on a non-input desktop and then
+    refuse wglMakeCurrent on it, so pyglet's first GL call fails with 0x1282.
+    Windows' own software OpenGL does work there, but it is GL 1.1 and pyglet 2
+    needs more.
+
+    Mesa's opengl32.dll, loaded by full path before pyglet is imported, is the
+    one every later LoadLibrary("opengl32") gets, so pyglet renders on the CPU
+    at GL 4.6 on any desktop. Only test processes do this; the game itself
+    never sees tests/mesa/. See THIRD-PARTY.md for the version and licence.
+    """
+    import ctypes
+    dll = os.path.join(MESA_DIR, "opengl32.dll")
+    if not os.path.exists(dll):
+        return "no tests/mesa/opengl32.dll, so OpenGL is the GPU driver's"
+    global _MESA_DIR_HANDLE
+    os.environ["GALLIUM_DRIVER"] = "llvmpipe"
+    # libgallium_wgl.dll sits beside it and may be loaded lazily, on the first
+    # GL call, so the search path stays open for the life of the process.
+    _MESA_DIR_HANDLE = os.add_dll_directory(MESA_DIR)
+    ctypes.WinDLL(dll)
+    return "OpenGL is Mesa llvmpipe from tests/mesa/"
 
 
 if __name__ == "__main__":
