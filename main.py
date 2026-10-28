@@ -69,6 +69,11 @@ _script_dir = os.path.dirname(os.path.abspath(__file__))
 if hasattr(os, 'add_dll_directory'):
     os.add_dll_directory(_script_dir)
 
+# The HRTF the game uses, SADIE II D1, ships in hrtf/ and alsoft.conf picks it.
+# Also before pyglet: OpenAL Soft reads its configuration when it loads.
+os.environ.setdefault('ALSOFT_CONF', os.path.join(_script_dir, 'alsoft.conf'))
+os.environ['EGG_PARK_HRTF'] = os.path.join(_script_dir, 'hrtf')
+
 import pyglet
 # Force pyglet to use OpenAL (HRTF support) instead of XAudio2.
 pyglet.options['audio'] = ('openal', 'xaudio2', 'directsound', 'pulse', 'silent')

@@ -3,8 +3,9 @@
 What Egg Park uses, under what terms, and what that means for anyone
 redistributing it.
 
-Two of these are redistributed inside this repository: `openal32.dll`,
-which the game uses, and Mesa under `tests/mesa/`, which only the tests use.
+Three of these are redistributed inside this repository: `openal32.dll` and
+`hrtf/SADIE_D1-48000.mhr`, which the game uses, and Mesa under `tests/mesa/`,
+which only the tests use.
 Everything else is installed separately by `pip` and is listed here for
 completeness, not because this repo carries a copy.
 
@@ -17,7 +18,7 @@ completeness, not because this repo carries a copy.
 | | |
 | --- | --- |
 | **What** | Software implementation of the OpenAL 3D audio API. Provides the HRTF positional audio the whole game is built on. |
-| **Version** | The binary reports **1.18.2**. |
+| **Version** | The binary reports **1.25.1**: a build of upstream `master` at commit `baa20481ea9290bdae332798e68dd1c9b6eeb0a1` (2026-02-16), taken from Convenience Express's `vendor/soft_oal.dll` and renamed. SHA-256 `72e3f39e11b401adb14e3bcfb515a6fb3e95e89a349b021f332b5262ccf3aa37`. It replaced 1.18.2, which could not read newer `.mhr` files or the keys a current `alsoft.ini` uses. |
 | **Licence** | **LGPL v2 or later.** Full text in `LICENSES/LGPL-2.1.txt`. |
 | **Upstream** | https://github.com/kcat/openal-soft — see `COPYING` there for the project's own copy. |
 | **Modified?** | **No.** Unmodified upstream binary. |
@@ -25,7 +26,7 @@ completeness, not because this repo carries a copy.
 **Why it's committed rather than left to the user:** the game is unplayable
 without positional audio, and telling someone to go and source an audio
 runtime before they can hear anything is a worse first experience than a
-874 KB file in the repo.
+1.7 MB file in the repo.
 
 **How the LGPL is satisfied here:**
 
@@ -39,15 +40,23 @@ runtime before they can hear anything is a worse first experience than a
 **If you modify the DLL**, you take on the LGPL's source obligations for
 your modified version. Nobody here has modified it.
 
-### HRTF dataset (inside OpenAL Soft)
+### SADIE II HRTF — `hrtf/SADIE_D1-48000.mhr`
 
-OpenAL Soft's default HRTF dataset is derived from the **SADIE II
-database** and is provided under the **Apache License 2.0** — text in
-`LICENSES/Apache-2.0.txt`.
+| | |
+| --- | --- |
+| **What** | The head-related transfer function the game renders with: subject D1, a Neumann KU100 dummy head, from the **SADIE II database**, University of York. `alsoft.conf` selects it. |
+| **Format** | OpenAL Soft `.mhr` (MinPHR02), 48 kHz. SHA-256 `415828ff9c0341ca53df154894b0954df34ed103c45a836d5d79b93b16d7b3f5`. |
+| **Source** | Copied from a collection of `.mhr` files converted from SADIE II, dated 2020-10-10. Who converted it is not recorded; the same file is in Convenience Express's build. The collection also has an `InvertedY` version, which has above and below swapped against OpenAL Soft's built-in set; this is the other one. |
+| **Licence** | **Apache License 2.0**, as the SADIE II database is distributed: `LICENSES/Apache-2.0.txt`. The `.mhr` is a derived, converted form of the data. |
+| **Upstream** | https://www.york.ac.uk/sadie-project/database.html |
+
+The SADIE II authors ask that the database and this paper be cited:
+Armstrong, C., Thresh, L., Murphy, D., and Kearney, G., "A Perceptual
+Evaluation of Individual and Non-Individual HRTFs: A Case Study of the SADIE
+II Database", Applied Sciences 8(11), 2029 (2018), doi:10.3390/app8112029.
 
 This matters more here than in most projects that bundle OpenAL: HRTF isn't
 an optional extra in Egg Park, it's the mechanism the entire game runs on.
-Distributing the DLL distributes that dataset with it.
 
 ### Mesa — `tests/mesa/opengl32.dll` and `tests/mesa/libgallium_wgl.dll`
 
