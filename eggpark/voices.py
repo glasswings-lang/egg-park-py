@@ -403,6 +403,28 @@ def stop_all():
     _live.clear()
 
 
+def last_serial():
+    """The serial of the voice play() most recently started: a handle for stop()."""
+    return _serial
+
+
+def stop(serial):
+    """Stop the one sound with this serial, if it is still the one playing.
+
+    A voice that finished and was given to another sound has a new serial, so a
+    stale handle never cuts off something else.
+    """
+    if not _ready:
+        return
+    for v in _live:
+        if v.serial == serial:
+            _al.alSourceStop(v.source_id)
+            _live.remove(v)
+            v.category = None
+            _free.append(v)
+            return
+
+
 def live_count():
     return len(_live)
 
