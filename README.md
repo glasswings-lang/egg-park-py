@@ -212,6 +212,12 @@ python tests/test_voices.py         # the voice pool: what plays when a park is 
 python tests/test_eggfield.py       # the egg grid: still true, and cheap in a heap
 ```
 
+`tests/test_no_private_strings.py` is the guard against private names and
+paths reaching a commit. Its list lives in `docs/private/`, which is never
+committed; `docs/forbidden-strings.example.txt` shows the format. A fresh
+clone arms it with `git config core.hooksPath githooks`, after which every
+commit and commit message is checked before it is made.
+
 Plain Python, no pytest. The first two read the game's code as text rather
 than running it, because running it opens a window.
 
